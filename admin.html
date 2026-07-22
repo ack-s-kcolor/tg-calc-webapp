@@ -167,6 +167,13 @@ function sellPerM2(item) {
   return purchasePerM2(item) * factor;
 }
 
+function updateComputedRow(i) {
+  const item = matData[i];
+  document.getElementById("matArea" + i).textContent = area(item).toFixed(4);
+  document.getElementById("matPurchaseM2" + i).textContent = purchasePerM2(item).toFixed(2);
+  document.getElementById("matSellM2" + i).textContent = sellPerM2(item).toFixed(2);
+}
+
 function renderMat() {
   const tbody = document.getElementById("rowsMat");
   tbody.innerHTML = "";
@@ -178,7 +185,7 @@ function renderMat() {
       const input = document.createElement("input");
       input.type = "text";
       input.value = value || "";
-      input.oninput = (e) => { matData[i][field] = e.target.value; renderMat(); };
+      input.oninput = (e) => { matData[i][field] = e.target.value; };
       td.appendChild(input);
       return td;
     }
@@ -187,7 +194,7 @@ function renderMat() {
       const input = document.createElement("input");
       input.type = "number";
       input.value = value ?? "";
-      input.oninput = (e) => { matData[i][field] = e.target.value; renderMat(); };
+      input.oninput = (e) => { matData[i][field] = e.target.value; updateComputedRow(i); };
       td.appendChild(input);
       return td;
     }
@@ -201,11 +208,13 @@ function renderMat() {
 
     const areaTd = document.createElement("td");
     areaTd.className = "computed";
+    areaTd.id = "matArea" + i;
     areaTd.textContent = area(item).toFixed(4);
     tr.appendChild(areaTd);
 
     const purchaseM2Td = document.createElement("td");
     purchaseM2Td.className = "computed";
+    purchaseM2Td.id = "matPurchaseM2" + i;
     purchaseM2Td.textContent = purchasePerM2(item).toFixed(2);
     tr.appendChild(purchaseM2Td);
 
@@ -213,6 +222,7 @@ function renderMat() {
 
     const sellM2Td = document.createElement("td");
     sellM2Td.className = "computed";
+    sellM2Td.id = "matSellM2" + i;
     sellM2Td.textContent = sellPerM2(item).toFixed(2);
     tr.appendChild(sellM2Td);
 
