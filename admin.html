@@ -78,6 +78,7 @@
 <div class="tabs">
   <button class="tab active" id="tab-mat">Материалы</button>
   <button class="tab" id="tab-op">Операции</button>
+  <button class="tab" id="tab-link">Материал → Операции</button>
 </div>
 
 <!-- МАТЕРИАЛЫ -->
@@ -139,6 +140,34 @@
   <div class="status" id="statusOp"></div>
 </div>
 
+<!-- МАТЕРИАЛ -> ОПЕРАЦИИ -->
+<div class="section" id="section-link">
+  <div class="hint" style="margin-top:0;">
+    Загрузите материалы и операции (можно те же файлы, что и на других вкладках), затем отметьте
+    галочками, какие операции обычно применяются к каждому материалу. Необязательно можно сразу
+    подгрузить уже существующую привязку, чтобы дозаполнить её.
+  </div>
+  <div class="file-row">
+    <label>Материалы: <input type="file" id="fileInputLinkMat" accept=".json"></label>
+  </div>
+  <div class="file-row">
+    <label>Операции: <input type="file" id="fileInputLinkOp" accept=".json"></label>
+  </div>
+  <div class="file-row">
+    <label>Существующая привязка (необязательно): <input type="file" id="fileInputLinkExisting" accept=".json"></label>
+  </div>
+
+  <table id="linkTableWrap" style="display:none;">
+    <thead><tr id="linkHeaderRow"><th>Материал \ Операция</th></tr></thead>
+    <tbody id="rowsLink"></tbody>
+  </table>
+
+  <div class="actions">
+    <button id="downloadLink">Скачать material_operations.json</button>
+  </div>
+  <div class="status" id="statusLink"></div>
+</div>
+
 <script>
 let matData = [];
 let opData = [];
@@ -146,11 +175,14 @@ let opData = [];
 function setTab(t) {
   document.getElementById("tab-mat").classList.toggle("active", t === "mat");
   document.getElementById("tab-op").classList.toggle("active", t === "op");
+  document.getElementById("tab-link").classList.toggle("active", t === "link");
   document.getElementById("section-mat").classList.toggle("active", t === "mat");
   document.getElementById("section-op").classList.toggle("active", t === "op");
+  document.getElementById("section-link").classList.toggle("active", t === "link");
 }
 document.getElementById("tab-mat").onclick = () => setTab("mat");
 document.getElementById("tab-op").onclick = () => setTab("op");
+document.getElementById("tab-link").onclick = () => setTab("link");
 
 // ---------- Материалы ----------
 
@@ -404,6 +436,129 @@ document.getElementById("downloadOp").onclick = () => {
   a.click();
   URL.revokeObjectURL(url);
   document.getElementById("statusOp").textContent = "Скачан файл: operations.json";
+};
+
+// ---------- Материал -> Операции ----------
+
+let linkMatNames = [];
+let linkOpNames = [];
+let linkMap = {}; // { "название материала": Set(["операция1", "операция2"]) }
+
+function loadNamesFromFile(file, callback) {
+  const reader = new FileReader();
+  reader.onload = (evt) => {
+    try {
+      const parsed = JSON.parse(evt.target.result);
+      if (!Array.isArray(parsed)) throw new Error("not array");
+      callback(parsed.map(p => p.name).filter(Boolean));
+    } catch (err) {
+      document.getElementById("statusLink").textContent = "Не удалось прочитать файл: это не корректный JSON-список.";
+    }
+  };
+  reader.readAsText(file, "utf-8");
+}
+
+document.getElementById("fileInputLinkMat").addEventListener("change", (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  loadNamesFromFile(file, (names) => {
+    linkMatNames = names;
+    document.getElementById("statusLink").textContent = `Материалов загружено: ${names.length}`;
+    renderLinkTable();
+  });
+});
+
+document.getElementById("fileInputLinkOp").addEventListener("change", (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  loadNamesFromFile(file, (names) => {
+    linkOpNames = names;
+    document.getElementById("statusLink").textContent = `Операций загружено: ${names.length}`;
+    renderLinkTable();
+  });
+});
+
+document.getElementById("fileInputLinkExisting").addEventListener("change", (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (evt) => {
+    try {
+      const parsed = JSON.parse(evt.target.result);
+      if (!Array.isArray(parsed)) throw new Error("not array");
+      linkMap = {};
+      parsed.forEach(entry => {
+        linkMap[entry.material] = new Set(entry.operations || []);
+      });
+      document.getElementById("statusLink").textContent = "Существующая привязка загружена.";
+      renderLinkTable();
+    } catch (err) {
+      document.getElementById("statusLink").textContent = "Не удалось прочитать файл привязки.";
+    }
+  };
+  reader.readAsText(file, "utf-8");
+});
+
+function renderLinkTable() {
+  if (linkMatNames.length === 0 || linkOpNames.length === 0) return;
+
+  const wrap = document.getElementById("linkTableWrap");
+  wrap.style.display = "";
+
+  const headerRow = document.getElementById("linkHeaderRow");
+  headerRow.innerHTML = "<th>Материал \\ Операция</th>";
+  linkOpNames.forEach(opName => {
+    const th = document.createElement("th");
+    th.textContent = opName;
+    th.style.fontSize = "11px";
+    headerRow.appendChild(th);
+  });
+
+  const tbody = document.getElementById("rowsLink");
+  tbody.innerHTML = "";
+  linkMatNames.forEach(matName => {
+    if (!linkMap[matName]) linkMap[matName] = new Set();
+    const tr = document.createElement("tr");
+    const nameTd = document.createElement("td");
+    nameTd.textContent = matName;
+    tr.appendChild(nameTd);
+
+    linkOpNames.forEach(opName => {
+      const td = document.createElement("td");
+      td.style.textAlign = "center";
+      const cb = document.createElement("input");
+      cb.type = "checkbox";
+      cb.checked = linkMap[matName].has(opName);
+      cb.onchange = () => {
+        if (cb.checked) linkMap[matName].add(opName);
+        else linkMap[matName].delete(opName);
+      };
+      td.appendChild(cb);
+      tr.appendChild(td);
+    });
+
+    tbody.appendChild(tr);
+  });
+}
+
+document.getElementById("downloadLink").onclick = () => {
+  if (linkMatNames.length === 0) {
+    document.getElementById("statusLink").textContent = "Сначала загрузите материалы и операции.";
+    return;
+  }
+  const result = linkMatNames.map(matName => ({
+    material: matName,
+    operations: Array.from(linkMap[matName] || [])
+  }));
+  const json = JSON.stringify(result, null, 2);
+  const blob = new Blob([json], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "material_operations.json";
+  a.click();
+  URL.revokeObjectURL(url);
+  document.getElementById("statusLink").textContent = "Скачан файл: material_operations.json";
 };
 
 renderMat();
