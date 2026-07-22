@@ -11,7 +11,7 @@
     background: #f5f5f5;
     color: #1a1a1a;
     padding: 24px;
-    max-width: 720px;
+    max-width: 1100px;
     margin: 0 auto;
   }
   h1 { font-size: 20px; margin: 0 0 4px; }
@@ -33,6 +33,14 @@
     align-items: center;
     flex-wrap: wrap;
   }
+  .markup-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 12px;
+    font-size: 13px;
+  }
+  .markup-row input { width: 70px; padding: 6px 8px; border-radius: 6px; border: 1px solid #ccc; }
   button {
     padding: 9px 16px;
     border-radius: 8px;
@@ -44,9 +52,10 @@
   }
   button.secondary { background: #e5e5e5; color: #1a1a1a; }
   button.danger { background: #e5484d; color: #fff; padding: 6px 10px; }
-  table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 10px; overflow: hidden; }
-  th, td { padding: 8px 10px; text-align: left; font-size: 13px; border-bottom: 1px solid #eee; }
-  th { background: #eee; font-weight: 500; }
+  table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 10px; overflow: hidden; font-size: 13px; }
+  th, td { padding: 6px 8px; text-align: left; border-bottom: 1px solid #eee; }
+  th { background: #eee; font-weight: 500; font-size: 12px; }
+  td.computed { color: #777; background: #fafafa; }
   input[type=text], input[type=number] {
     width: 100%;
     padding: 6px 8px;
@@ -54,14 +63,11 @@
     border: 1px solid #ccc;
     font-size: 13px;
   }
-  select {
-    padding: 6px 8px;
-    border-radius: 6px;
-    border: 1px solid #ccc;
-    font-size: 13px;
-  }
+  select { padding: 6px 8px; border-radius: 6px; border: 1px solid #ccc; font-size: 13px; }
   .actions { margin-top: 16px; display: flex; gap: 8px; }
   .status { margin-top: 12px; font-size: 13px; color: #2481cc; }
+  .section { display: none; }
+  .section.active { display: block; }
 </style>
 </head>
 <body>
@@ -74,72 +80,253 @@
   <button class="tab" id="tab-op">Операции</button>
 </div>
 
-<div class="file-row">
-  <input type="file" id="fileInput" accept=".json">
-  <button class="secondary" id="newBtn">Начать с пустого списка</button>
+<!-- МАТЕРИАЛЫ -->
+<div class="section active" id="section-mat">
+  <div class="file-row">
+    <input type="file" id="fileInputMat" accept=".json">
+    <button class="secondary" id="newBtnMat">Начать с пустого списка</button>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th style="width:20%">Материал</th>
+        <th style="width:12%">Поставщик</th>
+        <th style="width:12%">Ссылка</th>
+        <th style="width:9%">Ширина, мм</th>
+        <th style="width:9%">Высота, мм</th>
+        <th style="width:10%">Закупка листа, руб</th>
+        <th style="width:8%">Площадь, м²</th>
+        <th style="width:8%">Закупка, руб/м²</th>
+        <th style="width:8%">Наценка, %</th>
+        <th style="width:8%">Продажа, руб/м²</th>
+        <th style="width:7%"></th>
+      </tr>
+    </thead>
+    <tbody id="rowsMat"></tbody>
+  </table>
+
+  <div class="actions">
+    <button class="secondary" id="addRowMat">+ Добавить материал</button>
+    <button id="downloadMat">Скачать materials.json</button>
+  </div>
+  <div class="status" id="statusMat"></div>
 </div>
 
-<table>
-  <thead>
-    <tr>
-      <th style="width:45%">Название</th>
-      <th style="width:20%">Режим</th>
-      <th style="width:20%">Тариф</th>
-      <th style="width:15%"></th>
-    </tr>
-  </thead>
-  <tbody id="rows"></tbody>
-</table>
+<!-- ОПЕРАЦИИ -->
+<div class="section" id="section-op">
+  <div class="file-row">
+    <input type="file" id="fileInputOp" accept=".json">
+    <button class="secondary" id="newBtnOp">Начать с пустого списка</button>
+  </div>
 
-<div class="actions">
-  <button class="secondary" id="addRow">+ Добавить строку</button>
-  <button id="download">Скачать JSON</button>
+  <table>
+    <thead>
+      <tr>
+        <th style="width:50%">Название операции</th>
+        <th style="width:20%">Режим</th>
+        <th style="width:20%">Тариф</th>
+        <th style="width:10%"></th>
+      </tr>
+    </thead>
+    <tbody id="rowsOp"></tbody>
+  </table>
+
+  <div class="actions">
+    <button class="secondary" id="addRowOp">+ Добавить операцию</button>
+    <button id="downloadOp">Скачать operations.json</button>
+  </div>
+  <div class="status" id="statusOp"></div>
 </div>
-
-<div class="status" id="status"></div>
 
 <script>
-let mode = "materials";
-let data = [];
+let matData = [];
+let opData = [];
 
-const modeOptions = {
-  materials: [["sqm", "за м²"], ["pc", "за шт"]],
-  operations: [["sqm", "за м²"], ["pc", "за шт"], ["lm", "за пог. метр"]]
-};
+function setTab(t) {
+  document.getElementById("tab-mat").classList.toggle("active", t === "mat");
+  document.getElementById("tab-op").classList.toggle("active", t === "op");
+  document.getElementById("section-mat").classList.toggle("active", t === "mat");
+  document.getElementById("section-op").classList.toggle("active", t === "op");
+}
+document.getElementById("tab-mat").onclick = () => setTab("mat");
+document.getElementById("tab-op").onclick = () => setTab("op");
 
-function setTab(newMode) {
-  mode = newMode;
-  document.getElementById("tab-mat").classList.toggle("active", mode === "materials");
-  document.getElementById("tab-op").classList.toggle("active", mode === "operations");
-  document.getElementById("status").textContent = "";
+// ---------- Материалы ----------
+
+function area(item) {
+  return (parseFloat(item.width_mm) || 0) / 1000 * (parseFloat(item.height_mm) || 0) / 1000;
+}
+function purchasePerM2(item) {
+  const a = area(item);
+  return a > 0 ? (parseFloat(item.purchase_total) || 0) / a : 0;
+}
+function sellPerM2(item) {
+  const percent = parseFloat(item.markup_percent);
+  const factor = 1 + (isNaN(percent) ? 0 : percent) / 100;
+  return purchasePerM2(item) * factor;
 }
 
-document.getElementById("tab-mat").onclick = () => setTab("materials");
-document.getElementById("tab-op").onclick = () => setTab("operations");
-
-function render() {
-  const tbody = document.getElementById("rows");
+function renderMat() {
+  const tbody = document.getElementById("rowsMat");
   tbody.innerHTML = "";
-  data.forEach((item, i) => {
+  matData.forEach((item, i) => {
+    const tr = document.createElement("tr");
+
+    function textCell(field, value) {
+      const td = document.createElement("td");
+      const input = document.createElement("input");
+      input.type = "text";
+      input.value = value || "";
+      input.oninput = (e) => { matData[i][field] = e.target.value; renderMat(); };
+      td.appendChild(input);
+      return td;
+    }
+    function numCell(field, value) {
+      const td = document.createElement("td");
+      const input = document.createElement("input");
+      input.type = "number";
+      input.value = value ?? "";
+      input.oninput = (e) => { matData[i][field] = e.target.value; renderMat(); };
+      td.appendChild(input);
+      return td;
+    }
+
+    tr.appendChild(textCell("name", item.name));
+    tr.appendChild(textCell("supplier", item.supplier));
+    tr.appendChild(textCell("link", item.link));
+    tr.appendChild(numCell("width_mm", item.width_mm));
+    tr.appendChild(numCell("height_mm", item.height_mm));
+    tr.appendChild(numCell("purchase_total", item.purchase_total));
+
+    const areaTd = document.createElement("td");
+    areaTd.className = "computed";
+    areaTd.textContent = area(item).toFixed(4);
+    tr.appendChild(areaTd);
+
+    const purchaseM2Td = document.createElement("td");
+    purchaseM2Td.className = "computed";
+    purchaseM2Td.textContent = purchasePerM2(item).toFixed(2);
+    tr.appendChild(purchaseM2Td);
+
+    tr.appendChild(numCell("markup_percent", item.markup_percent));
+
+    const sellM2Td = document.createElement("td");
+    sellM2Td.className = "computed";
+    sellM2Td.textContent = sellPerM2(item).toFixed(2);
+    tr.appendChild(sellM2Td);
+
+    const delTd = document.createElement("td");
+    const delBtn = document.createElement("button");
+    delBtn.className = "danger";
+    delBtn.textContent = "Удалить";
+    delBtn.onclick = () => { matData.splice(i, 1); renderMat(); };
+    delTd.appendChild(delBtn);
+    tr.appendChild(delTd);
+
+    tbody.appendChild(tr);
+  });
+}
+
+document.getElementById("addRowMat").onclick = () => {
+  matData.push({ name: "", supplier: "", link: "", width_mm: "", height_mm: "", purchase_total: "", markup_percent: 80 });
+  renderMat();
+};
+
+document.getElementById("newBtnMat").onclick = () => {
+  matData = [];
+  renderMat();
+  document.getElementById("statusMat").textContent = "Начат пустой список.";
+};
+
+document.getElementById("fileInputMat").addEventListener("change", (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (evt) => {
+    try {
+      const parsed = JSON.parse(evt.target.result);
+      if (!Array.isArray(parsed)) throw new Error("not array");
+      // Файл materials.json хранит только name/mode/rate — при загрузке кладём rate
+      // как продажную цену, а поля расчёта (поставщик, размер, закупка) оставляем пустыми
+      // для донаполнения, если раньше их не было.
+      matData = parsed.map(p => ({
+        name: p.name || "",
+        supplier: p.supplier || "",
+        link: p.link || "",
+        width_mm: p.width_mm || "",
+        height_mm: p.height_mm || "",
+        purchase_total: p.purchase_total || "",
+        markup_percent: p.markup_percent !== undefined ? p.markup_percent : 80,
+        _existing_rate: p.rate
+      }));
+      renderMat();
+      document.getElementById("statusMat").textContent = `Загружено: ${file.name} (${matData.length} строк)`;
+    } catch (err) {
+      document.getElementById("statusMat").textContent = "Не удалось прочитать файл: это не корректный JSON-список.";
+    }
+  };
+  reader.readAsText(file, "utf-8");
+});
+
+document.getElementById("downloadMat").onclick = () => {
+  const cleaned = matData
+    .filter(item => item.name && item.name.trim())
+    .map(item => {
+      const computedRate = sellPerM2(item);
+      // если по материалу не заполнены размер/закупка (например, поштучный товар,
+      // добавленный вручную), используем ранее сохранённую цену, если она была
+      const rate = computedRate > 0 ? computedRate : (item._existing_rate || 0);
+      return {
+        name: item.name.trim(),
+        mode: "sqm",
+        rate: Math.round(rate * 100) / 100,
+        supplier: item.supplier || "",
+        link: item.link || "",
+        width_mm: item.width_mm || "",
+        height_mm: item.height_mm || "",
+        purchase_total: item.purchase_total || "",
+        markup_percent: item.markup_percent !== undefined ? item.markup_percent : 80
+      };
+    });
+  const json = JSON.stringify(cleaned, null, 2);
+  const blob = new Blob([json], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "materials.json";
+  a.click();
+  URL.revokeObjectURL(url);
+  document.getElementById("statusMat").textContent = "Скачан файл: materials.json (со всеми столбцами)";
+};
+
+// ---------- Операции ----------
+
+const opModeOptions = [["sqm", "за м²"], ["pc", "за шт"], ["lm", "за пог. метр"]];
+
+function renderOp() {
+  const tbody = document.getElementById("rowsOp");
+  tbody.innerHTML = "";
+  opData.forEach((item, i) => {
     const tr = document.createElement("tr");
 
     const nameTd = document.createElement("td");
     const nameInput = document.createElement("input");
     nameInput.type = "text";
     nameInput.value = item.name || "";
-    nameInput.oninput = (e) => { data[i].name = e.target.value; };
+    nameInput.oninput = (e) => { opData[i].name = e.target.value; };
     nameTd.appendChild(nameInput);
 
     const modeTd = document.createElement("td");
     const modeSelect = document.createElement("select");
-    modeOptions[mode].forEach(([val, label]) => {
+    opModeOptions.forEach(([val, label]) => {
       const opt = document.createElement("option");
       opt.value = val;
       opt.textContent = label;
       if (item.mode === val) opt.selected = true;
       modeSelect.appendChild(opt);
     });
-    modeSelect.onchange = (e) => { data[i].mode = e.target.value; };
+    modeSelect.onchange = (e) => { opData[i].mode = e.target.value; };
     modeTd.appendChild(modeSelect);
 
     const rateTd = document.createElement("td");
@@ -147,14 +334,14 @@ function render() {
     rateInput.type = "number";
     rateInput.step = "0.01";
     rateInput.value = item.rate ?? 0;
-    rateInput.oninput = (e) => { data[i].rate = parseFloat(e.target.value) || 0; };
+    rateInput.oninput = (e) => { opData[i].rate = parseFloat(e.target.value) || 0; };
     rateTd.appendChild(rateInput);
 
     const delTd = document.createElement("td");
     const delBtn = document.createElement("button");
     delBtn.className = "danger";
     delBtn.textContent = "Удалить";
-    delBtn.onclick = () => { data.splice(i, 1); render(); };
+    delBtn.onclick = () => { opData.splice(i, 1); renderOp(); };
     delTd.appendChild(delBtn);
 
     tr.appendChild(nameTd);
@@ -165,37 +352,37 @@ function render() {
   });
 }
 
-document.getElementById("addRow").onclick = () => {
-  data.push({ name: "", mode: modeOptions[mode][0][0], rate: 0 });
-  render();
+document.getElementById("addRowOp").onclick = () => {
+  opData.push({ name: "", mode: "pc", rate: 0 });
+  renderOp();
 };
 
-document.getElementById("newBtn").onclick = () => {
-  data = [];
-  render();
-  document.getElementById("status").textContent = "Начат пустой список.";
+document.getElementById("newBtnOp").onclick = () => {
+  opData = [];
+  renderOp();
+  document.getElementById("statusOp").textContent = "Начат пустой список.";
 };
 
-document.getElementById("fileInput").addEventListener("change", (e) => {
+document.getElementById("fileInputOp").addEventListener("change", (e) => {
   const file = e.target.files[0];
   if (!file) return;
   const reader = new FileReader();
   reader.onload = (evt) => {
     try {
       const parsed = JSON.parse(evt.target.result);
-      if (!Array.isArray(parsed)) throw new Error("not an array");
-      data = parsed;
-      render();
-      document.getElementById("status").textContent = `Загружено: ${file.name} (${data.length} строк)`;
+      if (!Array.isArray(parsed)) throw new Error("not array");
+      opData = parsed;
+      renderOp();
+      document.getElementById("statusOp").textContent = `Загружено: ${file.name} (${opData.length} строк)`;
     } catch (err) {
-      document.getElementById("status").textContent = "Не удалось прочитать файл: это не корректный JSON-список.";
+      document.getElementById("statusOp").textContent = "Не удалось прочитать файл: это не корректный JSON-список.";
     }
   };
   reader.readAsText(file, "utf-8");
 });
 
-document.getElementById("download").onclick = () => {
-  const cleaned = data
+document.getElementById("downloadOp").onclick = () => {
+  const cleaned = opData
     .filter(item => item.name && item.name.trim())
     .map(item => ({ name: item.name.trim(), mode: item.mode, rate: item.rate }));
   const json = JSON.stringify(cleaned, null, 2);
@@ -203,13 +390,14 @@ document.getElementById("download").onclick = () => {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = mode === "materials" ? "materials.json" : "operations.json";
+  a.download = "operations.json";
   a.click();
   URL.revokeObjectURL(url);
-  document.getElementById("status").textContent = `Скачан файл: ${a.download}`;
+  document.getElementById("statusOp").textContent = "Скачан файл: operations.json";
 };
 
-render();
+renderMat();
+renderOp();
 </script>
 
 </body>
