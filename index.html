@@ -86,6 +86,18 @@ tg.expand();
 
 let materials = [];
 let operations = [];
+let materialOperationsMap = {}; // { "название материала": ["операция1", ...] }
+
+function getAllowedOperations(materialName) {
+  const allowedNames = materialOperationsMap[materialName];
+  if (!allowedNames || allowedNames.length === 0) {
+    // для материала нет привязки — показываем полный список операций,
+    // чтобы ничего не блокировать, если справочник ещё не заполнен
+    return operations;
+  }
+  const filtered = operations.filter(o => allowedNames.includes(o.name));
+  return filtered.length > 0 ? filtered : operations;
+}
 
 const state = {
   step: "product",
@@ -209,8 +221,9 @@ function render() {
   }
 
   if (state.step === "operation_search") {
+    const allowedOps = getAllowedOperations(state.draft.material.name);
     renderSearchScreen(
-      operations,
+      allowedOps,
       "Операция",
       "Введите название операции...",
       (o) => {
@@ -379,12 +392,23 @@ function renderSearchScreen(catalog, title, placeholder, onSelect) {
   renderList("");
 }
 
+function fetchJsonSafe(url, fallback) {
+  return fetch(url)
+    .then(r => r.ok ? r.json() : fallback)
+    .catch(() => fallback);
+}
+
 Promise.all([
   fetch("materials.json").then(r => r.json()),
-  fetch("operations.json").then(r => r.json())
-]).then(([m, o]) => {
+  fetch("operations.json").then(r => r.json()),
+  fetchJsonSafe("material_operations.json", [])
+]).then(([m, o, link]) => {
   materials = m;
   operations = o;
+  materialOperationsMap = {};
+  link.forEach(entry => {
+    materialOperationsMap[entry.material] = entry.operations || [];
+  });
   render();
 }).catch(() => {
   document.getElementById("app").innerHTML = "<div class='hint'>Не удалось загрузить справочники</div>";

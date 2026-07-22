@@ -1,0 +1,66 @@
+[
+  {
+    "material": "стронг пвх 5мм",
+    "operations": [
+      "УФ печать",
+      "фрезеровка",
+      "ручная резка в размер"
+    ]
+  },
+  {
+    "material": "стронг пвх 3мм",
+    "operations": [
+      "УФ печать",
+      "фрезеровка",
+      "ручная резка в размер"
+    ]
+  },
+  {
+    "material": "оргстекло 2мм",
+    "operations": []
+  },
+  {
+    "material": "оргстекло 5мм",
+    "operations": []
+  },
+  {
+    "material": "акрил 2мм",
+    "operations": []
+  },
+  {
+    "material": "акрил 4мм",
+    "operations": []
+  },
+  {
+    "material": "композит тонкостенный",
+    "operations": []
+  },
+  {
+    "material": "АПЭТ 0,5мм",
+    "operations": []
+  },
+  {
+    "material": "акрил 3мм молочный",
+    "operations": []
+  },
+  {
+    "material": "профиль аллюминиевый",
+    "operations": []
+  },
+  {
+    "material": "пленка GRAFIX, серия Color, золотая, глянцевая",
+    "operations": []
+  },
+  {
+    "material": "Двухслойный пластик 1,5 серебро царапанное",
+    "operations": []
+  },
+  {
+    "material": "пленка прозрачная матовая для ламинации",
+    "operations": []
+  },
+  {
+    "material": "баннер 440гр 2,2х50",
+    "operations": []
+  }
+]
