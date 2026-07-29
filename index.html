@@ -498,7 +498,9 @@ function render() {
       <div class="summary-line"><div class="name">${c.material.name}</div><div class="sum">${c.materialSum.toFixed(0)} руб.</div></div>
       ${opsHtml}
       <div class="total"><span>Сумма компонента</span><span>${componentTotal(c).toFixed(0)} руб.</span></div>
-      <button class="btn secondary" id="editLast" style="margin-top:8px;">Изменить этот компонент</button>
+      <button class="btn secondary" id="editLast" style="margin-top:8px;">Изменить габариты компонента</button>
+      <button class="btn secondary" id="editMat">Изменить материал</button>
+      <button class="btn secondary" id="delComp" style="background:#e5484d; color:#fff;">Удалить компонент целиком</button>
     `;
     if (state.product.multi) {
       app.innerHTML += `
@@ -512,6 +514,8 @@ function render() {
       document.getElementById("done").onclick = () => { goToStep("final"); };
     }
     document.getElementById("editLast").onclick = () => editComponent(state.components.length - 1);
+    document.getElementById("editMat").onclick = () => editMaterial(state.components.length - 1);
+    document.getElementById("delComp").onclick = () => deleteComponent(state.components.length - 1);
     return;
   }
 
@@ -533,7 +537,11 @@ function render() {
           <div class="name" style="font-weight:600;">Итого по компоненту ${i + 1}</div>
           <div class="sum" style="font-weight:600;">${componentTotal(c).toFixed(0)} руб.</div>
         </div>
-        <button class="btn secondary" onclick="editComponent(${i})" style="margin-top:4px;">Изменить компонент ${i + 1}</button>
+        <div style="display:flex; gap:6px; margin-top:4px;">
+          <button class="btn secondary" onclick="editComponent(${i})" style="flex:1;">Габариты</button>
+          <button class="btn secondary" onclick="editMaterial(${i})" style="flex:1;">Материал</button>
+          <button class="btn secondary" onclick="deleteComponent(${i})" style="flex:1; background:#e5484d; color:#fff;">Удалить</button>
+        </div>
       `;
     }).join("<div style='height:8px;'></div>");
 
@@ -592,6 +600,16 @@ function deleteOperation(componentIndex, opIndex) {
   render();
 }
 
+function deleteComponent(index) {
+  state.components.splice(index, 1);
+  if (state.components.length === 0) {
+    // все компоненты удалены — возвращаемся к выбору материала для нового
+    startComponent();
+  } else {
+    goToStep(state.step === "component_done" ? "final" : state.step);
+  }
+}
+
 function editComponent(index) {
   const c = state.components.splice(index, 1)[0];
   state.draft = {
@@ -604,6 +622,20 @@ function editComponent(index) {
   };
   stepHistory = [];
   goToStep("dimensions");
+}
+
+function editMaterial(index) {
+  const c = state.components.splice(index, 1)[0];
+  state.draft = {
+    material: null,
+    height: c.height,
+    width: c.width,
+    qty: c.qty,
+    ops: c.ops,
+    material_length_m: c.material_length_m || 0
+  };
+  stepHistory = [];
+  goToStep("material_search");
 }
 
 function startComponent() {
