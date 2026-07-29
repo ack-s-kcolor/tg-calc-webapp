@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Калькулятор заказа</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
   #backBtn { margin-bottom: 12px; width: auto; padding: 8px 14px; }
   #summaryBar {
@@ -178,6 +179,85 @@ function summaryHtml() {
   return parts.join("<br>");
 }
 
+function downloadXlsx(payload) {
+  const rows = [];
+  rows.push([payload.product.name || "Без названия"]);
+  rows.push([`Тираж: ${payload.product.qty || 1} шт`]);
+  rows.push([]);
+  rows.push(["№", "Материал / Операция", "Сумма, руб."]);
+
+  payload.components.forEach((c, i) => {
+    rows.push([i + 1, c.material.name, Math.round(c.material_sum * 100) / 100]);
+    c.operations.forEach(o => {
+      rows.push(["", "    " + o.name, Math.round(o.sum * 100) / 100]);
+    });
+    rows.push(["", `Итого по компоненту ${i + 1}`, Math.round(c.component_sum * 100) / 100]);
+    rows.push([]);
+  });
+
+  rows.push(["", "ИТОГО", Math.round(payload.total * 100) / 100]);
+
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  ws["!cols"] = [{ wch: 6 }, { wch: 40 }, { wch: 16 }];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Расчёт");
+
+  // Скрытый лист с полными данными — нужен, чтобы этот же файл можно было
+  // загрузить обратно в калькулятор и продолжить редактирование, а не только
+  // посмотреть цифры. Обычный человек его не видит и не трогает.
+  const rawWs = XLSX.utils.aoa_to_sheet([[JSON.stringify(payload)]]);
+  XLSX.utils.book_append_sheet(wb, rawWs, "RawData");
+  wb.Workbook = wb.Workbook || {};
+  wb.Workbook.Sheets = [
+    { Hidden: 0 },
+    { Hidden: 1 }
+  ];
+
+  const safeName = (payload.product.name || "order").trim().replace(/[\\/:*?"<>|]/g, "-").slice(0, 50);
+  XLSX.writeFile(wb, `${safeName}.xlsx`);
+}
+
+function loadOrderFromXlsx(file) {
+  const statusEl = document.getElementById("loadOrderStatus");
+  const reader = new FileReader();
+  reader.onload = (evt) => {
+    try {
+      const wb = XLSX.read(evt.target.result, { type: "array" });
+      const rawSheet = wb.Sheets["RawData"];
+      if (!rawSheet) throw new Error("no raw sheet");
+      const cell = rawSheet["A1"];
+      if (!cell || !cell.v) throw new Error("empty raw cell");
+      const payload = JSON.parse(cell.v);
+
+      state.product = {
+        name: payload.product.name || "",
+        qty: payload.product.qty || 1,
+        multi: true // после загрузки всегда разрешаем добавлять ещё компоненты
+      };
+      state.components = payload.components.map(c => ({
+        material: c.material,
+        height: c.height_mm,
+        width: c.width_mm,
+        qty: c.qty,
+        ops: (c.operations || []).map(o => ({
+          name: o.name,
+          mode: o.mode,
+          rate: o.rate,
+          length_m: o.length_m || 0,
+          setup_cost: o.setup_cost || 0,
+          sum: o.sum
+        })),
+        materialSum: c.material_sum
+      }));
+      stepHistory = [];
+      goToStep("component_done");
+    } catch (err) {
+      statusEl.textContent = "Не удалось прочитать файл заказа — убедитесь, что это файл, скачанный из этого же калькулятора.";
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
 function unitLabel(mode) {
   if (mode === "sqm") return "руб/м²";
   if (mode === "lm") return "руб/м.п.";
@@ -234,12 +314,20 @@ function render() {
       <label>Тираж, шт</label>
       <input type="number" id="p_qty" value="${state.product.qty}" min="1">
       <button class="btn btn-primary" id="next">Далее</button>
+      <div class="hint" style="margin-top:16px;">Или загрузите ранее сохранённый файл заказа (.xlsx):</div>
+      <input type="file" id="loadOrderFile" accept=".xlsx">
+      <div class="hint" id="loadOrderStatus"></div>
     `;
     document.getElementById("next").onclick = () => {
       state.product.name = document.getElementById("p_name").value.trim() || "Без названия";
       state.product.qty = parseInt(document.getElementById("p_qty").value) || 1;
       goToStep("type");
     };
+    document.getElementById("loadOrderFile").addEventListener("change", (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      loadOrderFromXlsx(file);
+    });
     return;
   }
 
@@ -446,6 +534,7 @@ function render() {
     const actionHtml = tg
       ? `<button class="btn btn-primary" id="send">Отправить расчёт в чат</button>`
       : `<button class="btn btn-primary" id="send">Скачать JSON расчёта</button>
+         <button class="btn secondary" id="sendXlsx" style="margin-top:6px;">Скачать Excel</button>
          <div class="hint" style="margin-top:8px;">Страница открыта не в Telegram — расчёт показан ниже и его можно скачать файлом.</div>
          <pre style="margin-top:14px; background:var(--tg-theme-secondary-bg-color,#f2f2f2); border-radius:10px; padding:12px; font-size:12px; overflow-x:auto; white-space:pre-wrap; word-break:break-word;">${JSON.stringify(payload, null, 2)}</pre>`;
 
@@ -471,6 +560,9 @@ function render() {
         URL.revokeObjectURL(url);
       }
     };
+    if (!tg) {
+      document.getElementById("sendXlsx").onclick = () => downloadXlsx(payload);
+    }
     return;
   }
 }
