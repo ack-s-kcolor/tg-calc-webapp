@@ -7,6 +7,17 @@
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <style>
   #backBtn { margin-bottom: 12px; width: auto; padding: 8px 14px; }
+  #summaryBar {
+    font-size: 12px;
+    color: var(--tg-theme-hint-color, #999999);
+    background: var(--tg-theme-secondary-bg-color, #f2f2f2);
+    border-radius: 10px;
+    padding: 10px 12px;
+    margin-bottom: 14px;
+    line-height: 1.6;
+  }
+  #summaryBar b { color: var(--tg-theme-text-color, #000000); }
+  #summaryBar:empty { display: none; margin: 0; padding: 0; }
   * { box-sizing: border-box; }
   body {
     margin: 0;
@@ -79,6 +90,7 @@
 <body>
 
 <button id="backBtn" class="btn secondary" style="display:none;">← Назад</button>
+<div id="summaryBar"></div>
 <div id="app"></div>
 
 <script>
@@ -93,14 +105,28 @@ let operations = [];
 let materialOperationsMap = {}; // { "название материала": ["операция1", ...] }
 
 function getAllowedOperations(materialName) {
-  const allowedNames = materialOperationsMap[materialName];
-  if (!allowedNames || allowedNames.length === 0) {
-    // для материала нет привязки — показываем полный список операций,
+  const entry = materialOperationsMap[materialName];
+  if (!entry) {
+    // материала вообще нет в справочнике привязки — показываем все операции,
     // чтобы ничего не блокировать, если справочник ещё не заполнен
     return operations;
   }
-  const filtered = operations.filter(o => allowedNames.includes(o.name));
-  return filtered.length > 0 ? filtered : operations;
+  if (entry.no_operations) return [];
+  if (entry.operations.length === 0) return operations;
+  return operations.filter(o => entry.operations.includes(o.name));
+}
+
+function materialHasNoOperations(materialName) {
+  const entry = materialOperationsMap[materialName];
+  return !!(entry && entry.no_operations);
+}
+
+function proceedAfterMaterialSetup() {
+  if (materialHasNoOperations(state.draft.material.name)) {
+    finishComponent();
+  } else {
+    goToStep("operation_search");
+  }
 }
 
 const state = {
@@ -123,6 +149,33 @@ function goBack() {
   if (stepHistory.length === 0) return;
   state.step = stepHistory.pop();
   render();
+}
+
+function summaryHtml() {
+  const parts = [];
+
+  if (state.product.name) {
+    parts.push(`<b>${state.product.name}</b> · тираж ${state.product.qty} шт`);
+  }
+
+  if (state.draft.material) {
+    let matLine = `Материал: ${state.draft.material.name}`;
+    if (state.draft.height || state.draft.width) {
+      matLine += ` · ${state.draft.height || 0}x${state.draft.width || 0}мм, ${state.draft.qty} шт`;
+    }
+    parts.push(matLine);
+  }
+
+  if (state.draft.ops && state.draft.ops.length > 0) {
+    const opsList = state.draft.ops.map(o => `${o.name} (${o.sum.toFixed(0)} руб)`).join(", ");
+    parts.push(`Операции: ${opsList}`);
+  }
+
+  if (state.components.length > 0) {
+    parts.push(`Готовых компонентов: ${state.components.length} (${grandTotal().toFixed(0)} руб.)`);
+  }
+
+  return parts.join("<br>");
 }
 
 function unitLabel(mode) {
@@ -170,6 +223,8 @@ function render() {
   const backBtn = document.getElementById("backBtn");
   backBtn.style.display = stepHistory.length > 0 ? "block" : "none";
   backBtn.onclick = goBack;
+
+  document.getElementById("summaryBar").innerHTML = summaryHtml();
 
   if (state.step === "product") {
     app.innerHTML = `
@@ -238,7 +293,7 @@ function render() {
       if (state.draft.material.mode === "lm") {
         goToStep("material_length");
       } else {
-        goToStep("operation_search");
+        proceedAfterMaterialSetup();
       }
     };
     return;
@@ -256,7 +311,7 @@ function render() {
     `;
     document.getElementById("next").onclick = () => {
       state.draft.material_length_m = parseFloat(document.getElementById("mat_len").value) || 0;
-      goToStep("operation_search");
+      proceedAfterMaterialSetup();
     };
     return;
   }
@@ -460,7 +515,10 @@ Promise.all([
   operations = o;
   materialOperationsMap = {};
   link.forEach(entry => {
-    materialOperationsMap[entry.material] = entry.operations || [];
+    materialOperationsMap[entry.material] = {
+      operations: entry.operations || [],
+      no_operations: !!entry.no_operations
+    };
   });
   render();
 }).catch(() => {

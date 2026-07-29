@@ -91,17 +91,19 @@
   <table>
     <thead>
       <tr>
-        <th style="width:20%">Материал</th>
-        <th style="width:12%">Поставщик</th>
-        <th style="width:12%">Ссылка</th>
-        <th style="width:9%">Ширина, мм</th>
-        <th style="width:9%">Высота, мм</th>
-        <th style="width:10%">Закупка листа, руб</th>
-        <th style="width:8%">Площадь, м²</th>
-        <th style="width:8%">Закупка, руб/м²</th>
-        <th style="width:8%">Наценка, %</th>
-        <th style="width:8%">Продажа, руб/м²</th>
-        <th style="width:7%"></th>
+        <th style="width:15%">Материал</th>
+        <th style="width:9%">Поставщик</th>
+        <th style="width:9%">Ссылка</th>
+        <th style="width:8%">Режим</th>
+        <th style="width:7%">Ширина, мм</th>
+        <th style="width:7%">Высота, мм</th>
+        <th style="width:7%">Длина, м</th>
+        <th style="width:8%">Закупка, руб</th>
+        <th style="width:7%">База (м²/м)</th>
+        <th style="width:7%">Закупка/ед.</th>
+        <th style="width:6%">Наценка, %</th>
+        <th style="width:7%">Продажа/ед.</th>
+        <th style="width:5%"></th>
       </tr>
     </thead>
     <tbody id="rowsMat"></tbody>
@@ -187,6 +189,9 @@ document.getElementById("tab-link").onclick = () => setTab("link");
 // ---------- Материалы ----------
 
 function area(item) {
+  if (item.mode === "lm") {
+    return parseFloat(item.length_m) || 0;
+  }
   return (parseFloat(item.width_mm) || 0) / 1000 * (parseFloat(item.height_mm) || 0) / 1000;
 }
 function purchasePerM2(item) {
@@ -206,6 +211,16 @@ function updateComputedRow(i) {
   document.getElementById("matSellM2" + i).textContent = sellPerM2(item).toFixed(2);
 }
 
+function updateFieldAvailability(i) {
+  const isLm = matData[i].mode === "lm";
+  const widthInput = document.getElementById("matWidth" + i);
+  const heightInput = document.getElementById("matHeight" + i);
+  const lengthInput = document.getElementById("matLength" + i);
+  if (widthInput) { widthInput.disabled = isLm; widthInput.style.opacity = isLm ? 0.35 : 1; }
+  if (heightInput) { heightInput.disabled = isLm; heightInput.style.opacity = isLm ? 0.35 : 1; }
+  if (lengthInput) { lengthInput.disabled = !isLm; lengthInput.style.opacity = isLm ? 1 : 0.35; }
+}
+
 function renderMat() {
   const tbody = document.getElementById("rowsMat");
   tbody.innerHTML = "";
@@ -221,11 +236,12 @@ function renderMat() {
       td.appendChild(input);
       return td;
     }
-    function numCell(field, value) {
+    function numCell(field, value, id) {
       const td = document.createElement("td");
       const input = document.createElement("input");
       input.type = "number";
       input.value = value ?? "";
+      if (id) input.id = id;
       input.oninput = (e) => { matData[i][field] = e.target.value; updateComputedRow(i); };
       td.appendChild(input);
       return td;
@@ -234,8 +250,27 @@ function renderMat() {
     tr.appendChild(textCell("name", item.name));
     tr.appendChild(textCell("supplier", item.supplier));
     tr.appendChild(textCell("link", item.link));
-    tr.appendChild(numCell("width_mm", item.width_mm));
-    tr.appendChild(numCell("height_mm", item.height_mm));
+
+    const modeTd = document.createElement("td");
+    const modeSelect = document.createElement("select");
+    [["sqm", "за м²"], ["lm", "за пог. метр"]].forEach(([val, label]) => {
+      const opt = document.createElement("option");
+      opt.value = val;
+      opt.textContent = label;
+      if ((item.mode || "sqm") === val) opt.selected = true;
+      modeSelect.appendChild(opt);
+    });
+    modeSelect.onchange = (e) => {
+      matData[i].mode = e.target.value;
+      updateComputedRow(i);
+      updateFieldAvailability(i);
+    };
+    modeTd.appendChild(modeSelect);
+    tr.appendChild(modeTd);
+
+    tr.appendChild(numCell("width_mm", item.width_mm, "matWidth" + i));
+    tr.appendChild(numCell("height_mm", item.height_mm, "matHeight" + i));
+    tr.appendChild(numCell("length_m", item.length_m, "matLength" + i));
     tr.appendChild(numCell("purchase_total", item.purchase_total));
 
     const areaTd = document.createElement("td");
@@ -268,10 +303,11 @@ function renderMat() {
 
     tbody.appendChild(tr);
   });
+  matData.forEach((item, i) => updateFieldAvailability(i));
 }
 
 document.getElementById("addRowMat").onclick = () => {
-  matData.push({ name: "", supplier: "", link: "", width_mm: "", height_mm: "", purchase_total: "", markup_percent: 80 });
+  matData.push({ name: "", supplier: "", link: "", mode: "sqm", width_mm: "", height_mm: "", length_m: "", purchase_total: "", markup_percent: 80 });
   renderMat();
 };
 
@@ -296,8 +332,10 @@ document.getElementById("fileInputMat").addEventListener("change", (e) => {
         name: p.name || "",
         supplier: p.supplier || "",
         link: p.link || "",
+        mode: p.mode === "lm" ? "lm" : "sqm",
         width_mm: p.width_mm || "",
         height_mm: p.height_mm || "",
+        length_m: p.length_m || "",
         purchase_total: p.purchase_total || "",
         markup_percent: p.markup_percent !== undefined ? p.markup_percent : 80,
         _existing_rate: p.rate
@@ -321,12 +359,13 @@ document.getElementById("downloadMat").onclick = () => {
       const rate = computedRate > 0 ? computedRate : (item._existing_rate || 0);
       return {
         name: item.name.trim(),
-        mode: "sqm",
+        mode: item.mode === "lm" ? "lm" : "sqm",
         rate: Math.round(rate * 100) / 100,
         supplier: item.supplier || "",
         link: item.link || "",
         width_mm: item.width_mm || "",
         height_mm: item.height_mm || "",
+        length_m: item.length_m || "",
         purchase_total: item.purchase_total || "",
         markup_percent: item.markup_percent !== undefined ? item.markup_percent : 80
       };
@@ -443,6 +482,7 @@ document.getElementById("downloadOp").onclick = () => {
 let linkMatNames = [];
 let linkOpNames = [];
 let linkMap = {}; // { "название материала": Set(["операция1", "операция2"]) }
+let linkNoOps = {}; // { "название материала": true/false } — явный флаг "операции не нужны совсем"
 
 function loadNamesFromFile(file, callback) {
   const reader = new FileReader();
@@ -487,8 +527,10 @@ document.getElementById("fileInputLinkExisting").addEventListener("change", (e) 
       const parsed = JSON.parse(evt.target.result);
       if (!Array.isArray(parsed)) throw new Error("not array");
       linkMap = {};
+      linkNoOps = {};
       parsed.forEach(entry => {
         linkMap[entry.material] = new Set(entry.operations || []);
+        linkNoOps[entry.material] = !!entry.no_operations;
       });
       document.getElementById("statusLink").textContent = "Существующая привязка загружена.";
       renderLinkTable();
@@ -506,7 +548,7 @@ function renderLinkTable() {
   wrap.style.display = "";
 
   const headerRow = document.getElementById("linkHeaderRow");
-  headerRow.innerHTML = "<th>Материал \\ Операция</th>";
+  headerRow.innerHTML = "<th>Материал \\ Операция</th><th style=\"font-size:11px;\">Без операций совсем</th>";
   linkOpNames.forEach(opName => {
     const th = document.createElement("th");
     th.textContent = opName;
@@ -518,10 +560,24 @@ function renderLinkTable() {
   tbody.innerHTML = "";
   linkMatNames.forEach(matName => {
     if (!linkMap[matName]) linkMap[matName] = new Set();
+    if (linkNoOps[matName] === undefined) linkNoOps[matName] = false;
     const tr = document.createElement("tr");
     const nameTd = document.createElement("td");
     nameTd.textContent = matName;
     tr.appendChild(nameTd);
+
+    const noOpsTd = document.createElement("td");
+    noOpsTd.style.textAlign = "center";
+    const noOpsCb = document.createElement("input");
+    noOpsCb.type = "checkbox";
+    noOpsCb.checked = linkNoOps[matName];
+    const opCheckboxes = [];
+    noOpsCb.onchange = () => {
+      linkNoOps[matName] = noOpsCb.checked;
+      opCheckboxes.forEach(cb => { cb.disabled = noOpsCb.checked; });
+    };
+    noOpsTd.appendChild(noOpsCb);
+    tr.appendChild(noOpsTd);
 
     linkOpNames.forEach(opName => {
       const td = document.createElement("td");
@@ -529,10 +585,12 @@ function renderLinkTable() {
       const cb = document.createElement("input");
       cb.type = "checkbox";
       cb.checked = linkMap[matName].has(opName);
+      cb.disabled = linkNoOps[matName];
       cb.onchange = () => {
         if (cb.checked) linkMap[matName].add(opName);
         else linkMap[matName].delete(opName);
       };
+      opCheckboxes.push(cb);
       td.appendChild(cb);
       tr.appendChild(td);
     });
@@ -548,7 +606,8 @@ document.getElementById("downloadLink").onclick = () => {
   }
   const result = linkMatNames.map(matName => ({
     material: matName,
-    operations: Array.from(linkMap[matName] || [])
+    operations: Array.from(linkMap[matName] || []),
+    no_operations: !!linkNoOps[matName]
   }));
   const json = JSON.stringify(result, null, 2);
   const blob = new Blob([json], { type: "application/json" });

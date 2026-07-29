@@ -5,7 +5,8 @@
       "УФ печать",
       "фрезеровка",
       "ручная резка в размер"
-    ]
+    ],
+    "no_operations": false
   },
   {
     "material": "стронг пвх 3мм",
@@ -13,54 +14,77 @@
       "УФ печать",
       "фрезеровка",
       "ручная резка в размер"
-    ]
+    ],
+    "no_operations": false
   },
   {
     "material": "оргстекло 2мм",
-    "operations": []
+    "operations": [],
+    "no_operations": false
   },
   {
     "material": "оргстекло 5мм",
-    "operations": []
+    "operations": [],
+    "no_operations": false
   },
   {
     "material": "акрил 2мм",
-    "operations": []
+    "operations": [],
+    "no_operations": false
   },
   {
     "material": "акрил 4мм",
-    "operations": []
+    "operations": [],
+    "no_operations": false
   },
   {
     "material": "композит тонкостенный",
-    "operations": []
+    "operations": [],
+    "no_operations": false
   },
   {
     "material": "АПЭТ 0,5мм",
-    "operations": []
+    "operations": [],
+    "no_operations": false
   },
   {
     "material": "акрил 3мм молочный",
-    "operations": []
+    "operations": [],
+    "no_operations": false
   },
   {
     "material": "профиль аллюминиевый",
-    "operations": []
+    "operations": [],
+    "no_operations": true
   },
   {
     "material": "пленка GRAFIX, серия Color, золотая, глянцевая",
-    "operations": []
+    "operations": [],
+    "no_operations": false
   },
   {
     "material": "Двухслойный пластик 1,5 серебро царапанное",
-    "operations": []
+    "operations": [],
+    "no_operations": false
   },
   {
     "material": "пленка прозрачная матовая для ламинации",
-    "operations": []
+    "operations": [],
+    "no_operations": false
   },
   {
     "material": "баннер 440гр 2,2х50",
-    "operations": []
+    "operations": [],
+    "no_operations": false
+  },
+  {
+    "material": "П-профиль торцевой 4мм серебро",
+    "operations": [],
+    "no_operations": true
+  },
+  {
+    "material": "П-профиль торцевой 4мм черный",
+    "operations": [],
+    "no_operations": true
   }
 ]
