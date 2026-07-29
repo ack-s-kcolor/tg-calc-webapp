@@ -95,7 +95,11 @@
 <div id="app"></div>
 
 <script>
-const tg = (window.Telegram && window.Telegram.WebApp) ? window.Telegram.WebApp : null;
+const tgRaw = (window.Telegram && window.Telegram.WebApp) ? window.Telegram.WebApp : null;
+// telegram-web-app.js создаёт объект WebApp даже в обычном браузере вне Telegram —
+// поэтому проверяем не просто его наличие, а initData: он пустой вне Telegram
+// и заполнен только при реальном запуске из мессенджера
+const tg = (tgRaw && tgRaw.initData) ? tgRaw : null;
 if (tg) {
   tg.ready();
   tg.expand();
