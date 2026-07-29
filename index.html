@@ -6,6 +6,7 @@
 <title>Калькулятор заказа</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <style>
+  #backBtn { margin-bottom: 12px; width: auto; padding: 8px 14px; }
   * { box-sizing: border-box; }
   body {
     margin: 0;
@@ -77,12 +78,15 @@
 </head>
 <body>
 
+<button id="backBtn" class="btn secondary" style="display:none;">← Назад</button>
 <div id="app"></div>
 
 <script>
-const tg = window.Telegram.WebApp;
-tg.ready();
-tg.expand();
+const tg = (window.Telegram && window.Telegram.WebApp) ? window.Telegram.WebApp : null;
+if (tg) {
+  tg.ready();
+  tg.expand();
+}
 
 let materials = [];
 let operations = [];
@@ -106,6 +110,20 @@ const state = {
   draft: { material: null, height: 0, width: 0, qty: 1, ops: [] },
   opDraft: null
 };
+
+let stepHistory = [];
+
+function goToStep(newStep) {
+  stepHistory.push(state.step);
+  state.step = newStep;
+  render();
+}
+
+function goBack() {
+  if (stepHistory.length === 0) return;
+  state.step = stepHistory.pop();
+  render();
+}
 
 function unitLabel(mode) {
   if (mode === "sqm") return "руб/м²";
@@ -149,6 +167,10 @@ function render() {
   const app = document.getElementById("app");
   app.innerHTML = "";
 
+  const backBtn = document.getElementById("backBtn");
+  backBtn.style.display = stepHistory.length > 0 ? "block" : "none";
+  backBtn.onclick = goBack;
+
   if (state.step === "product") {
     app.innerHTML = `
       <h1>Новое изделие</h1>
@@ -161,8 +183,7 @@ function render() {
     document.getElementById("next").onclick = () => {
       state.product.name = document.getElementById("p_name").value.trim() || "Без названия";
       state.product.qty = parseInt(document.getElementById("p_qty").value) || 1;
-      state.step = "type";
-      render();
+      goToStep("type");
     };
     return;
   }
@@ -192,8 +213,7 @@ function render() {
       "Введите название материала...",
       (m) => {
         state.draft.material = { name: m.name, mode: m.mode, rate: m.rate };
-        state.step = "dimensions";
-        render();
+        goToStep("dimensions");
       }
     );
     return;
@@ -216,11 +236,10 @@ function render() {
       state.draft.width = parseFloat(document.getElementById("d_w").value) || 0;
       state.draft.qty = parseInt(document.getElementById("d_qty").value) || 1;
       if (state.draft.material.mode === "lm") {
-        state.step = "material_length";
+        goToStep("material_length");
       } else {
-        state.step = "operation_search";
+        goToStep("operation_search");
       }
-      render();
     };
     return;
   }
@@ -237,8 +256,7 @@ function render() {
     `;
     document.getElementById("next").onclick = () => {
       state.draft.material_length_m = parseFloat(document.getElementById("mat_len").value) || 0;
-      state.step = "operation_search";
-      render();
+      goToStep("operation_search");
     };
     return;
   }
@@ -252,11 +270,10 @@ function render() {
       (o) => {
         state.opDraft = { name: o.name, mode: o.mode, rate: o.rate, length_m: 0, setup_cost: 0 };
         if (o.mode === "lm") {
-          state.step = "operation_length";
+          goToStep("operation_length");
         } else {
-          state.step = "operation_setup";
+          goToStep("operation_setup");
         }
-        render();
       }
     );
     return;
@@ -274,8 +291,7 @@ function render() {
     `;
     document.getElementById("next").onclick = () => {
       state.opDraft.length_m = parseFloat(document.getElementById("op_len").value) || 0;
-      state.step = "operation_setup";
-      render();
+      goToStep("operation_setup");
     };
     return;
   }
@@ -292,8 +308,7 @@ function render() {
       state.opDraft.sum = opSum(state.opDraft);
       state.draft.ops.push(state.opDraft);
       state.opDraft = null;
-      state.step = "operation_more";
-      render();
+      goToStep("operation_more");
     };
     return;
   }
@@ -306,8 +321,7 @@ function render() {
       <button class="btn btn-primary" id="no">Нет, компонент готов</button>
     `;
     document.getElementById("yes").onclick = () => {
-      state.step = "operation_search";
-      render();
+      goToStep("operation_search");
     };
     document.getElementById("no").onclick = () => {
       finishComponent();
@@ -332,10 +346,10 @@ function render() {
         <button class="btn btn-primary" id="done">Завершить изделие</button>
       `;
       document.getElementById("more").onclick = () => startComponent();
-      document.getElementById("done").onclick = () => { state.step = "final"; render(); };
+      document.getElementById("done").onclick = () => { goToStep("final"); };
     } else {
       app.innerHTML += `<button class="btn btn-primary" id="done">Завершить</button>`;
-      document.getElementById("done").onclick = () => { state.step = "final"; render(); };
+      document.getElementById("done").onclick = () => { goToStep("final"); };
     }
     return;
   }
@@ -344,29 +358,47 @@ function render() {
     let compHtml = state.components.map((c, i) =>
       `<div class="summary-line"><div class="name">${i + 1}. ${c.material.name}</div><div class="sum">${componentTotal(c).toFixed(0)} руб.</div></div>`
     ).join("");
+
+    const payload = {
+      product: state.product,
+      components: state.components.map(c => ({
+        material: c.material,
+        height_mm: c.height,
+        width_mm: c.width,
+        qty: c.qty,
+        material_sum: c.materialSum,
+        operations: c.ops,
+        component_sum: componentTotal(c)
+      })),
+      total: grandTotal()
+    };
+
+    const actionHtml = tg
+      ? `<button class="btn btn-primary" id="send">Отправить расчёт в чат</button>`
+      : `<button class="btn btn-primary" id="send">Скачать JSON расчёта</button>
+         <div class="hint" style="margin-top:8px;">Страница открыта не в Telegram, поэтому расчёт можно только скачать файлом.</div>`;
+
     app.innerHTML = `
       <h1>${state.product.name}</h1>
       <div class="hint">Тираж: ${state.product.qty} шт</div>
       ${compHtml}
       <div class="total"><span>Итого</span><span>${grandTotal().toFixed(0)} руб.</span></div>
-      <button class="btn btn-primary" id="send">Отправить расчёт в чат</button>
+      ${actionHtml}
     `;
     document.getElementById("send").onclick = () => {
-      const payload = {
-        product: state.product,
-        components: state.components.map(c => ({
-          material: c.material,
-          height_mm: c.height,
-          width_mm: c.width,
-          qty: c.qty,
-          material_sum: c.materialSum,
-          operations: c.ops,
-          component_sum: componentTotal(c)
-        })),
-        total: grandTotal()
-      };
-      tg.sendData(JSON.stringify(payload));
-      tg.close();
+      if (tg) {
+        tg.sendData(JSON.stringify(payload));
+        tg.close();
+      } else {
+        const json = JSON.stringify(payload, null, 2);
+        const blob = new Blob([json], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "order.json";
+        a.click();
+        URL.revokeObjectURL(url);
+      }
     };
     return;
   }
@@ -374,15 +406,13 @@ function render() {
 
 function startComponent() {
   state.draft = { material: null, height: 0, width: 0, qty: 1, ops: [] };
-  state.step = "material_search";
-  render();
+  goToStep("material_search");
 }
 
 function finishComponent() {
   state.draft.materialSum = materialSum();
   state.components.push(state.draft);
-  state.step = "component_done";
-  render();
+  goToStep("component_done");
 }
 
 function renderSearchScreen(catalog, title, placeholder, onSelect) {
