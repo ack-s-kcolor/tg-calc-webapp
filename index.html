@@ -446,7 +446,8 @@ function render() {
     const actionHtml = tg
       ? `<button class="btn btn-primary" id="send">Отправить расчёт в чат</button>`
       : `<button class="btn btn-primary" id="send">Скачать JSON расчёта</button>
-         <div class="hint" style="margin-top:8px;">Страница открыта не в Telegram, поэтому расчёт можно только скачать файлом.</div>`;
+         <div class="hint" style="margin-top:8px;">Страница открыта не в Telegram — расчёт показан ниже и его можно скачать файлом.</div>
+         <pre style="margin-top:14px; background:var(--tg-theme-secondary-bg-color,#f2f2f2); border-radius:10px; padding:12px; font-size:12px; overflow-x:auto; white-space:pre-wrap; word-break:break-word;">${JSON.stringify(payload, null, 2)}</pre>`;
 
     app.innerHTML = `
       <h1>${state.product.name}</h1>
