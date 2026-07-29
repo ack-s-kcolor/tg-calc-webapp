@@ -89,5 +89,19 @@
     "rate": 0,
     "cost": 0,
     "markup_percent": 0
+  },
+  {
+    "name": "резка пвх 3мм",
+    "mode": "lm",
+    "rate": 35,
+    "cost": "35",
+    "markup_percent": 0
+  },
+  {
+    "name": "резка пвх 5мм",
+    "mode": "lm",
+    "rate": 45,
+    "cost": "45",
+    "markup_percent": 0
   }
 ]
