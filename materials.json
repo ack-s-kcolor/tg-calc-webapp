@@ -2,71 +2,193 @@
   {
     "name": "стронг пвх 5мм",
     "mode": "sqm",
-    "rate": 2101.85
+    "rate": 2101.85,
+    "supplier": "",
+    "link": "",
+    "width_mm": "",
+    "height_mm": "",
+    "length_m": "",
+    "purchase_total": "",
+    "markup_percent": 80
   },
   {
     "name": "стронг пвх 3мм",
     "mode": "sqm",
-    "rate": 1333.48
+    "rate": 1333.48,
+    "supplier": "",
+    "link": "",
+    "width_mm": "",
+    "height_mm": "",
+    "length_m": "",
+    "purchase_total": "",
+    "markup_percent": 80
   },
   {
     "name": "оргстекло 2мм",
     "mode": "sqm",
-    "rate": 2633.1
+    "rate": 2633.1,
+    "supplier": "",
+    "link": "",
+    "width_mm": "",
+    "height_mm": "",
+    "length_m": "",
+    "purchase_total": "",
+    "markup_percent": 80
   },
   {
     "name": "оргстекло 5мм",
     "mode": "sqm",
-    "rate": 4110.0
+    "rate": 4110,
+    "supplier": "",
+    "link": "",
+    "width_mm": "",
+    "height_mm": "",
+    "length_m": "",
+    "purchase_total": "",
+    "markup_percent": 80
   },
   {
     "name": "акрил 2мм",
     "mode": "sqm",
-    "rate": 739.09
+    "rate": 739.09,
+    "supplier": "",
+    "link": "",
+    "width_mm": "",
+    "height_mm": "",
+    "length_m": "",
+    "purchase_total": "",
+    "markup_percent": 80
   },
   {
     "name": "акрил 4мм",
     "mode": "sqm",
-    "rate": 1448.44
+    "rate": 1448.44,
+    "supplier": "",
+    "link": "",
+    "width_mm": "",
+    "height_mm": "",
+    "length_m": "",
+    "purchase_total": "",
+    "markup_percent": 80
   },
   {
     "name": "композит тонкостенный",
     "mode": "sqm",
-    "rate": 3709.12
+    "rate": 3709.12,
+    "supplier": "",
+    "link": "",
+    "width_mm": "",
+    "height_mm": "",
+    "length_m": "",
+    "purchase_total": "",
+    "markup_percent": 80
   },
   {
     "name": "АПЭТ 0,5мм",
     "mode": "sqm",
-    "rate": 372.29
+    "rate": 372.29,
+    "supplier": "",
+    "link": "",
+    "width_mm": "",
+    "height_mm": "",
+    "length_m": "",
+    "purchase_total": "",
+    "markup_percent": 80
   },
   {
     "name": "акрил 3мм молочный",
     "mode": "sqm",
-    "rate": 4116.0
+    "rate": 4116,
+    "supplier": "",
+    "link": "",
+    "width_mm": "",
+    "height_mm": "",
+    "length_m": "",
+    "purchase_total": "",
+    "markup_percent": 80
   },
   {
     "name": "профиль аллюминиевый",
     "mode": "sqm",
-    "rate": 675.0
+    "rate": 675,
+    "supplier": "",
+    "link": "",
+    "width_mm": "",
+    "height_mm": "",
+    "length_m": "",
+    "purchase_total": "",
+    "markup_percent": 80
   },
   {
     "name": "пленка GRAFIX, серия Color, золотая, глянцевая",
     "mode": "sqm",
-    "rate": 1400.0
+    "rate": 1400,
+    "supplier": "",
+    "link": "",
+    "width_mm": "",
+    "height_mm": "",
+    "length_m": "",
+    "purchase_total": "",
+    "markup_percent": 80
   },
   {
     "name": "Двухслойный пластик 1,5 серебро царапанное",
     "mode": "sqm",
-    "rate": 3750.0
+    "rate": 3750,
+    "supplier": "",
+    "link": "",
+    "width_mm": "",
+    "height_mm": "",
+    "length_m": "",
+    "purchase_total": "",
+    "markup_percent": 80
   },
   {
     "name": "пленка прозрачная матовая для ламинации",
     "mode": "sqm",
-    "rate": 360.0
+    "rate": 360,
+    "supplier": "",
+    "link": "",
+    "width_mm": "",
+    "height_mm": "",
+    "length_m": "",
+    "purchase_total": "",
+    "markup_percent": 80
   },
   {
     "name": "баннер 440гр 2,2х50",
     "mode": "sqm",
-    "rate": 162.0
+    "rate": 162,
+    "supplier": "",
+    "link": "",
+    "width_mm": "",
+    "height_mm": "",
+    "length_m": "",
+    "purchase_total": "",
+    "markup_percent": 80
+  },
+  {
+    "name": "П-профиль торцевой 4мм серебро",
+    "mode": "lm",
+    "rate": 397.33,
+    "supplier": "Глобус",
+    "link": "арт. 1010",
+    "width_mm": "1",
+    "height_mm": "3000",
+    "length_m": "3",
+    "purchase_total": "298",
+    "markup_percent": "300"
+  },
+  {
+    "name": "П-профиль торцевой 4мм черный",
+    "mode": "lm",
+    "rate": 445.33,
+    "supplier": "Глобус",
+    "link": "арт. 1010",
+    "width_mm": "",
+    "height_mm": "",
+    "length_m": "3",
+    "purchase_total": "334",
+    "markup_percent": "300"
   }
 ]
