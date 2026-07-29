@@ -487,8 +487,11 @@ function render() {
 
   if (state.step === "component_done") {
     const c = state.components[state.components.length - 1];
-    let opsHtml = c.ops.map(o =>
-      `<div class="summary-line"><div class="name">${o.name}</div><div class="sum">${o.sum.toFixed(0)} руб.</div></div>`
+    let opsHtml = c.ops.map((o, opIdx) =>
+      `<div class="summary-line" style="display:flex; justify-content:space-between; align-items:center;">
+        <div><div class="name">${o.name}</div><div class="sum" style="text-align:left;">${o.sum.toFixed(0)} руб.</div></div>
+        <button class="danger" onclick="deleteOperation(${state.components.length - 1}, ${opIdx})" style="padding:6px 10px; font-size:12px; background:#e5484d; color:#fff; border:none; border-radius:6px;">Удалить</button>
+      </div>`
     ).join("");
     app.innerHTML = `
       <h1>Компонент готов</h1>
@@ -514,9 +517,10 @@ function render() {
 
   if (state.step === "final") {
     let compHtml = state.components.map((c, i) => {
-      const opsHtml = c.ops.map(o =>
-        `<div class="summary-line" style="margin-left:14px; background:transparent; border-left:2px solid var(--tg-theme-hint-color,#cccccc); border-radius:0; padding-left:10px;">
-          <div class="name">${o.name}</div><div class="sum">${o.sum.toFixed(0)} руб.</div>
+      const opsHtml = c.ops.map((o, opIdx) =>
+        `<div class="summary-line" style="margin-left:14px; background:transparent; border-left:2px solid var(--tg-theme-hint-color,#cccccc); border-radius:0; padding-left:10px; display:flex; justify-content:space-between; align-items:center;">
+          <div><div class="name">${o.name}</div><div class="sum" style="text-align:left;">${o.sum.toFixed(0)} руб.</div></div>
+          <button onclick="deleteOperation(${i}, ${opIdx})" style="padding:6px 10px; font-size:12px; background:#e5484d; color:#fff; border:none; border-radius:6px;">Удалить</button>
         </div>`
       ).join("");
       return `
@@ -581,6 +585,11 @@ function render() {
     }
     return;
   }
+}
+
+function deleteOperation(componentIndex, opIndex) {
+  state.components[componentIndex].ops.splice(opIndex, 1);
+  render();
 }
 
 function editComponent(index) {
