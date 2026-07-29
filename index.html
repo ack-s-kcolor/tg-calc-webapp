@@ -501,15 +501,15 @@ function renderSearchScreen(catalog, title, placeholder, onSelect) {
 }
 
 function fetchJsonSafe(url, fallback) {
-  return fetch(url)
+  return fetch(url, { cache: "no-store" })
     .then(r => r.ok ? r.json() : fallback)
     .catch(() => fallback);
 }
 
 Promise.all([
-  fetch("materials.json").then(r => r.json()),
-  fetch("operations.json").then(r => r.json()),
-  fetchJsonSafe("material_operations.json", [])
+  fetch("materials.json?v=" + Date.now(), { cache: "no-store" }).then(r => r.json()),
+  fetch("operations.json?v=" + Date.now(), { cache: "no-store" }).then(r => r.json()),
+  fetchJsonSafe("material_operations.json?v=" + Date.now(), [])
 ]).then(([m, o, link]) => {
   materials = m;
   operations = o;
