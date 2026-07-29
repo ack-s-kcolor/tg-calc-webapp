@@ -1,20 +1,12 @@
 [
   {
     "material": "стронг пвх 5мм",
-    "operations": [
-      "УФ печать",
-      "фрезеровка",
-      "ручная резка в размер"
-    ],
+    "operations": [],
     "no_operations": false
   },
   {
     "material": "стронг пвх 3мм",
-    "operations": [
-      "УФ печать",
-      "фрезеровка",
-      "ручная резка в размер"
-    ],
+    "operations": [],
     "no_operations": false
   },
   {
