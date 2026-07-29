@@ -393,11 +393,12 @@ function render() {
 
   if (state.step === "material_length") {
     const perim = perimeter();
+    const prefill = state.draft.material_length_m ? state.draft.material_length_m.toFixed(2) : perim.toFixed(2);
     app.innerHTML = `
       <h1>${state.draft.material.name}</h1>
       <div class="hint">Периметр по габаритам: ${perim.toFixed(2)} м на 1 шт</div>
       <label>Длина материала на 1 шт, м</label>
-      <input type="number" step="0.01" id="mat_len" value="${perim.toFixed(2)}">
+      <input type="number" step="0.01" id="mat_len" value="${prefill}">
       <div class="hint">Можно оставить расчётный периметр или ввести своё значение</div>
       <button class="btn btn-primary" id="next">Далее</button>
     `;
@@ -423,6 +424,14 @@ function render() {
         }
       }
     );
+    const skipBtn = document.createElement("button");
+    skipBtn.className = "btn secondary";
+    skipBtn.style.marginTop = "10px";
+    skipBtn.textContent = state.draft.ops.length > 0
+      ? "Готово, больше операций не нужно"
+      : "Завершить без операций";
+    skipBtn.onclick = () => finishComponent();
+    app.appendChild(skipBtn);
     return;
   }
 
@@ -486,6 +495,7 @@ function render() {
       <div class="summary-line"><div class="name">${c.material.name}</div><div class="sum">${c.materialSum.toFixed(0)} руб.</div></div>
       ${opsHtml}
       <div class="total"><span>Сумма компонента</span><span>${componentTotal(c).toFixed(0)} руб.</span></div>
+      <button class="btn secondary" id="editLast" style="margin-top:8px;">Изменить этот компонент</button>
     `;
     if (state.product.multi) {
       app.innerHTML += `
@@ -498,6 +508,7 @@ function render() {
       app.innerHTML += `<button class="btn btn-primary" id="done">Завершить</button>`;
       document.getElementById("done").onclick = () => { goToStep("final"); };
     }
+    document.getElementById("editLast").onclick = () => editComponent(state.components.length - 1);
     return;
   }
 
@@ -518,6 +529,7 @@ function render() {
           <div class="name" style="font-weight:600;">Итого по компоненту ${i + 1}</div>
           <div class="sum" style="font-weight:600;">${componentTotal(c).toFixed(0)} руб.</div>
         </div>
+        <button class="btn secondary" onclick="editComponent(${i})" style="margin-top:4px;">Изменить компонент ${i + 1}</button>
       `;
     }).join("<div style='height:8px;'></div>");
 
@@ -571,12 +583,29 @@ function render() {
   }
 }
 
+function editComponent(index) {
+  const c = state.components.splice(index, 1)[0];
+  state.draft = {
+    material: c.material,
+    height: c.height,
+    width: c.width,
+    qty: c.qty,
+    ops: c.ops,
+    material_length_m: c.material_length_m || 0
+  };
+  stepHistory = [];
+  goToStep("dimensions");
+}
+
 function startComponent() {
   state.draft = { material: null, height: 0, width: 0, qty: 1, ops: [] };
   goToStep("material_search");
 }
 
 function finishComponent() {
+  // пересчитываем суммы операций от текущих габаритов/количества —
+  // важно, если компонент редактировался и размеры могли измениться
+  state.draft.ops.forEach(op => { op.sum = opSum(op); });
   state.draft.materialSum = materialSum();
   state.components.push(state.draft);
   goToStep("component_done");
