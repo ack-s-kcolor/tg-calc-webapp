@@ -125,6 +125,7 @@ function materialSum() {
   const m = state.draft.material;
   if (!m) return 0;
   if (m.mode === "sqm") return area() * state.draft.qty * m.rate;
+  if (m.mode === "lm") return (state.draft.material_length_m || 0) * state.draft.qty * m.rate;
   return state.draft.qty * m.rate;
 }
 
@@ -214,6 +215,28 @@ function render() {
       state.draft.height = parseFloat(document.getElementById("d_h").value) || 0;
       state.draft.width = parseFloat(document.getElementById("d_w").value) || 0;
       state.draft.qty = parseInt(document.getElementById("d_qty").value) || 1;
+      if (state.draft.material.mode === "lm") {
+        state.step = "material_length";
+      } else {
+        state.step = "operation_search";
+      }
+      render();
+    };
+    return;
+  }
+
+  if (state.step === "material_length") {
+    const perim = perimeter();
+    app.innerHTML = `
+      <h1>${state.draft.material.name}</h1>
+      <div class="hint">Периметр по габаритам: ${perim.toFixed(2)} м на 1 шт</div>
+      <label>Длина материала на 1 шт, м</label>
+      <input type="number" step="0.01" id="mat_len" value="${perim.toFixed(2)}">
+      <div class="hint">Можно оставить расчётный периметр или ввести своё значение</div>
+      <button class="btn btn-primary" id="next">Далее</button>
+    `;
+    document.getElementById("next").onclick = () => {
+      state.draft.material_length_m = parseFloat(document.getElementById("mat_len").value) || 0;
       state.step = "operation_search";
       render();
     };
