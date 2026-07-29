@@ -166,6 +166,13 @@ const state = {
 };
 
 let stepHistory = [];
+let expandedComponents = new Set(); // индексы компонентов, развёрнутых на финальном экране
+
+function toggleComponentExpand(i) {
+  if (expandedComponents.has(i)) expandedComponents.delete(i);
+  else expandedComponents.add(i);
+  render();
+}
 
 function goToStep(newStep) {
   stepHistory.push(state.step);
@@ -546,27 +553,33 @@ function render() {
 
   if (state.step === "final") {
     let compHtml = state.components.map((c, i) => {
+      const isOpen = expandedComponents.has(i);
       const opsHtml = c.ops.map((o, opIdx) =>
         `<div class="op-row" style="margin-left:14px; border-left:2px solid var(--tg-theme-hint-color,#cccccc); padding-left:10px;">
           <div class="op-info"><span class="name">${o.name}</span><span class="sum">${o.sum.toFixed(0)} руб.</span></div>
           <button class="btn btn-sm" onclick="deleteOperation(${i}, ${opIdx})" style="background:#e5484d; color:#fff;">✕</button>
         </div>`
       ).join("");
-      return `
-        <div class="summary-line">
-          <div class="name">${i + 1}. ${c.material.name}</div>
+
+      const detailsHtml = isOpen ? `
+        <div class="summary-line" style="background:transparent; padding-top:2px; padding-bottom:0;">
+          <div class="name">Материал: ${c.material.name}</div>
           <div class="sum">${c.materialSum.toFixed(0)} руб.</div>
         </div>
         ${opsHtml}
-        <div class="summary-line" style="background:transparent; padding-top:0; padding-bottom:2px;">
-          <div class="name" style="font-weight:600;">Итого по компоненту ${i + 1}</div>
-          <div class="sum" style="font-weight:600;">${componentTotal(c).toFixed(0)} руб.</div>
-        </div>
         <div class="comp-actions">
           <button class="btn btn-sm" onclick="editComponent(${i})">Габариты</button>
           <button class="btn btn-sm" onclick="editMaterial(${i})">Материал</button>
           <button class="btn btn-sm" onclick="deleteComponent(${i})" style="background:#e5484d; color:#fff;">Удалить</button>
         </div>
+      ` : "";
+
+      return `
+        <div class="summary-line" style="cursor:pointer;" onclick="toggleComponentExpand(${i})">
+          <div class="name">${isOpen ? "▼" : "▶"} ${i + 1}. ${c.material.name}</div>
+          <div class="sum">${componentTotal(c).toFixed(0)} руб.</div>
+        </div>
+        ${detailsHtml}
       `;
     }).join("<div style='height:10px;'></div>");
 
@@ -627,6 +640,7 @@ function deleteOperation(componentIndex, opIndex) {
 
 function deleteComponent(index) {
   state.components.splice(index, 1);
+  expandedComponents.clear();
   if (state.components.length === 0) {
     // все компоненты удалены — возвращаемся к выбору материала для нового
     startComponent();
