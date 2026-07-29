@@ -1,37 +1,59 @@
 [
   {
     "material": "стронг пвх 5мм",
-    "operations": [],
+    "operations": [
+      "УФ печать",
+      "фрезеровка",
+      "ручная резка в размер"
+    ],
     "no_operations": false
   },
   {
     "material": "стронг пвх 3мм",
-    "operations": [],
+    "operations": [
+      "УФ печать",
+      "фрезеровка",
+      "ручная резка в размер"
+    ],
     "no_operations": false
   },
   {
     "material": "оргстекло 2мм",
-    "operations": [],
+    "operations": [
+      "УФ печать",
+      "фрезеровка"
+    ],
     "no_operations": false
   },
   {
     "material": "оргстекло 5мм",
-    "operations": [],
+    "operations": [
+      "УФ печать",
+      "фрезеровка"
+    ],
     "no_operations": false
   },
   {
     "material": "акрил 2мм",
-    "operations": [],
+    "operations": [
+      "УФ печать"
+    ],
     "no_operations": false
   },
   {
     "material": "акрил 4мм",
-    "operations": [],
+    "operations": [
+      "УФ печать"
+    ],
     "no_operations": false
   },
   {
     "material": "композит тонкостенный",
-    "operations": [],
+    "operations": [
+      "УФ печать",
+      "фрезеровка",
+      "ручная резка в размер"
+    ],
     "no_operations": false
   },
   {
@@ -56,12 +78,19 @@
   },
   {
     "material": "Двухслойный пластик 1,5 серебро царапанное",
-    "operations": [],
+    "operations": [
+      "УФ печать",
+      "ручная резка в размер",
+      "фрезеровка"
+    ],
     "no_operations": false
   },
   {
     "material": "пленка прозрачная матовая для ламинации",
-    "operations": [],
+    "operations": [
+      "УФ печать",
+      "ручная резка в размер"
+    ],
     "no_operations": false
   },
   {
