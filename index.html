@@ -410,9 +410,24 @@ function render() {
   }
 
   if (state.step === "final") {
-    let compHtml = state.components.map((c, i) =>
-      `<div class="summary-line"><div class="name">${i + 1}. ${c.material.name}</div><div class="sum">${componentTotal(c).toFixed(0)} руб.</div></div>`
-    ).join("");
+    let compHtml = state.components.map((c, i) => {
+      const opsHtml = c.ops.map(o =>
+        `<div class="summary-line" style="margin-left:14px; background:transparent; border-left:2px solid var(--tg-theme-hint-color,#cccccc); border-radius:0; padding-left:10px;">
+          <div class="name">${o.name}</div><div class="sum">${o.sum.toFixed(0)} руб.</div>
+        </div>`
+      ).join("");
+      return `
+        <div class="summary-line">
+          <div class="name">${i + 1}. ${c.material.name}</div>
+          <div class="sum">${c.materialSum.toFixed(0)} руб.</div>
+        </div>
+        ${opsHtml}
+        <div class="summary-line" style="background:transparent; padding-top:0;">
+          <div class="name" style="font-weight:600;">Итого по компоненту ${i + 1}</div>
+          <div class="sum" style="font-weight:600;">${componentTotal(c).toFixed(0)} руб.</div>
+        </div>
+      `;
+    }).join("<div style='height:8px;'></div>");
 
     const payload = {
       product: state.product,
