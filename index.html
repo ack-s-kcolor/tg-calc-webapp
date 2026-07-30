@@ -7,6 +7,15 @@
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
+  #stickyHeader {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    background: var(--tg-theme-bg-color, #ffffff);
+    padding-top: 14px;
+    margin-top: -14px;
+    padding-bottom: 6px;
+  }
   #backBtn { margin-bottom: 12px; width: auto; padding: 8px 14px; }
   .btn-sm {
     width: auto;
@@ -113,8 +122,10 @@
 </head>
 <body>
 
-<button id="backBtn" class="btn secondary" style="display:none;">← Назад</button>
-<div id="summaryBar"></div>
+<div id="stickyHeader">
+  <button id="backBtn" class="btn secondary" style="display:none;">← Назад</button>
+  <div id="summaryBar"></div>
+</div>
 <div id="app"></div>
 
 <script>
