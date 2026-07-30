@@ -250,5 +250,17 @@
     "length_m": "",
     "purchase_total": "11950",
     "markup_percent": 80
+  },
+  {
+    "name": "Oracal 641 цветной",
+    "mode": "sqm",
+    "rate": 810,
+    "supplier": "Чичерин",
+    "link": "",
+    "width_mm": "1000",
+    "height_mm": "1000",
+    "length_m": "",
+    "purchase_total": "450",
+    "markup_percent": 80
   }
 ]

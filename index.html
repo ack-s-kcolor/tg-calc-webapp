@@ -30,9 +30,12 @@
     padding: 7px 10px;
     font-size: 13px;
   }
-  .op-row .op-info { display: flex; gap: 8px; align-items: baseline; }
+  .op-row .op-info { display: flex; flex-direction: column; gap: 1px; }
+  .op-row .op-info .name-line { display: flex; gap: 8px; align-items: baseline; }
   .op-row .op-info .name { font-weight: 400; }
   .op-row .op-info .sum { color: var(--tg-theme-hint-color, #999999); }
+  .op-row .op-info .detail { font-size: 11px; color: var(--tg-theme-hint-color, #999999); }
+  .summary-line .detail { font-size: 11px; color: var(--tg-theme-hint-color, #999999); margin-top: 2px; }
   .comp-actions {
     display: flex;
     gap: 6px;
@@ -584,8 +587,12 @@ function render() {
         : (o.mode === "sqm"
           ? `<button class="btn btn-sm" onclick="editOperationRate(${state.components.length - 1}, ${opIdx})">✎</button>`
           : "");
+      const detail = calcDetailText(o.mode, o.rate, areaFor(c), o.length_m);
       return `<div class="op-row">
-        <div class="op-info"><span class="name">${o.name}</span><span class="sum">${o.sum.toFixed(0)} руб.</span></div>
+        <div class="op-info">
+          <div class="name-line"><span class="name">${o.name}</span><span class="sum">${o.sum.toFixed(0)} руб.</span></div>
+          <div class="detail">${detail}${o.setup_cost ? ` + приладка ${o.setup_cost} руб.` : ""}</div>
+        </div>
         <div style="display:flex; gap:4px;">
           ${editBtn}
           <button class="btn btn-sm" onclick="deleteOperation(${state.components.length - 1}, ${opIdx})" style="background:#e5484d; color:#fff;">✕</button>
@@ -594,7 +601,9 @@ function render() {
     }).join("");
     app.innerHTML = `
       <h1>Компонент готов</h1>
-      <div class="summary-line"><div class="name">${c.material.name}</div><div class="sum">${c.materialSum.toFixed(0)} руб.</div></div>
+      <div class="summary-line"><div class="name">${c.material.name}</div><div class="sum">${c.materialSum.toFixed(0)} руб.</div>
+        <div class="detail">${calcDetailText(c.material.mode, c.material.rate, areaFor(c), c.material_length_m)}</div>
+      </div>
       ${opsHtml}
       <div class="total"><span>Сумма компонента</span><span>${componentTotal(c).toFixed(0)} руб.</span></div>
       <div class="comp-actions" style="margin-top:10px;">
@@ -629,8 +638,12 @@ function render() {
           : (o.mode === "sqm"
             ? `<button class="btn btn-sm" onclick="editOperationRate(${i}, ${opIdx})">✎</button>`
             : "");
+        const detail = calcDetailText(o.mode, o.rate, areaFor(c), o.length_m);
         return `<div class="op-row" style="margin-left:14px; border-left:2px solid var(--tg-theme-hint-color,#cccccc); padding-left:10px;">
-          <div class="op-info"><span class="name">${o.name}</span><span class="sum">${o.sum.toFixed(0)} руб.</span></div>
+          <div class="op-info">
+            <div class="name-line"><span class="name">${o.name}</span><span class="sum">${o.sum.toFixed(0)} руб.</span></div>
+            <div class="detail">${detail}${o.setup_cost ? ` + приладка ${o.setup_cost} руб.` : ""}</div>
+          </div>
           <div style="display:flex; gap:4px;">
             ${editBtn}
             <button class="btn btn-sm" onclick="deleteOperation(${i}, ${opIdx})" style="background:#e5484d; color:#fff;">✕</button>
@@ -642,6 +655,7 @@ function render() {
         <div class="summary-line" style="background:transparent; padding-top:2px; padding-bottom:0;">
           <div class="name">Материал: ${c.material.name}</div>
           <div class="sum">${c.materialSum.toFixed(0)} руб.</div>
+          <div class="detail">${calcDetailText(c.material.mode, c.material.rate, areaFor(c), c.material_length_m)}</div>
         </div>
         ${opsHtml}
         <div class="comp-actions">
@@ -719,10 +733,19 @@ function perimeterFor(c) {
   return 2 * (c.height + c.width) / 1000;
 }
 
+function areaFor(c) {
+  return (c.height / 1000) * (c.width / 1000);
+}
+
+function calcDetailText(mode, rate, area, lengthM) {
+  if (mode === "sqm") return `${area.toFixed(4)} м² × ${rate} руб/м²`;
+  if (mode === "lm") return `${(lengthM || 0).toFixed(2)} м × ${rate} руб/м.п.`;
+  return `${rate} руб/шт`;
+}
+
 function opSumFor(c, op) {
   if (op.mode === "sqm") {
-    const area = (c.height / 1000) * (c.width / 1000);
-    return area * c.qty * op.rate + (op.setup_cost || 0);
+    return areaFor(c) * c.qty * op.rate + (op.setup_cost || 0);
   }
   if (op.mode === "lm") {
     return (op.length_m || 0) * c.qty * op.rate + (op.setup_cost || 0);
