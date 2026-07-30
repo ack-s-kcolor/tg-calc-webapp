@@ -16,7 +16,26 @@
   }
   h1 { font-size: 20px; margin: 0 0 4px; }
   .hint { font-size: 13px; color: #777; margin-bottom: 20px; }
-  .tabs { display: flex; gap: 8px; margin-bottom: 16px; }
+  .tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+    position: sticky;
+    top: 0;
+    z-index: 60;
+    background: #f5f5f5;
+    padding-top: 24px;
+    margin-top: -24px;
+    padding-bottom: 10px;
+  }
+  th {
+    background: #eee;
+    font-weight: 500;
+    font-size: 12px;
+    position: sticky;
+    top: 66px;
+    z-index: 40;
+  }
   .tab {
     padding: 8px 16px;
     border-radius: 8px;
@@ -54,7 +73,6 @@
   button.danger { background: #e5484d; color: #fff; padding: 6px 10px; }
   table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 10px; overflow: hidden; font-size: 13px; }
   th, td { padding: 6px 8px; text-align: left; border-bottom: 1px solid #eee; }
-  th { background: #eee; font-weight: 500; font-size: 12px; }
   td.computed { color: #777; background: #fafafa; }
   input[type=text], input[type=number] {
     width: 100%;
@@ -126,10 +144,12 @@
   <table>
     <thead>
       <tr>
-        <th style="width:50%">Название операции</th>
-        <th style="width:20%">Режим</th>
-        <th style="width:20%">Тариф</th>
-        <th style="width:10%"></th>
+        <th style="width:32%">Название операции</th>
+        <th style="width:14%">Режим</th>
+        <th style="width:14%">Себестоимость</th>
+        <th style="width:12%">Наценка, %</th>
+        <th style="width:14%">Тариф (продажа)</th>
+        <th style="width:14%"></th>
       </tr>
     </thead>
     <tbody id="rowsOp"></tbody>
@@ -385,6 +405,17 @@ document.getElementById("downloadMat").onclick = () => {
 
 const opModeOptions = [["sqm", "за м²"], ["pc", "за шт"], ["lm", "за пог. метр"]];
 
+function opSellRate(item) {
+  const cost = parseFloat(item.cost) || 0;
+  const percent = parseFloat(item.markup_percent);
+  const factor = 1 + (isNaN(percent) ? 0 : percent) / 100;
+  return cost * factor;
+}
+
+function updateOpComputedRow(i) {
+  document.getElementById("opRate" + i).textContent = opSellRate(opData[i]).toFixed(2);
+}
+
 function renderOp() {
   const tbody = document.getElementById("rowsOp");
   tbody.innerHTML = "";
@@ -410,13 +441,25 @@ function renderOp() {
     modeSelect.onchange = (e) => { opData[i].mode = e.target.value; };
     modeTd.appendChild(modeSelect);
 
+    const costTd = document.createElement("td");
+    const costInput = document.createElement("input");
+    costInput.type = "number";
+    costInput.step = "0.01";
+    costInput.value = item.cost ?? 0;
+    costInput.oninput = (e) => { opData[i].cost = e.target.value; updateOpComputedRow(i); };
+    costTd.appendChild(costInput);
+
+    const markupTd = document.createElement("td");
+    const markupInput = document.createElement("input");
+    markupInput.type = "number";
+    markupInput.value = item.markup_percent ?? 0;
+    markupInput.oninput = (e) => { opData[i].markup_percent = e.target.value; updateOpComputedRow(i); };
+    markupTd.appendChild(markupInput);
+
     const rateTd = document.createElement("td");
-    const rateInput = document.createElement("input");
-    rateInput.type = "number";
-    rateInput.step = "0.01";
-    rateInput.value = item.rate ?? 0;
-    rateInput.oninput = (e) => { opData[i].rate = parseFloat(e.target.value) || 0; };
-    rateTd.appendChild(rateInput);
+    rateTd.className = "computed";
+    rateTd.id = "opRate" + i;
+    rateTd.textContent = opSellRate(item).toFixed(2);
 
     const delTd = document.createElement("td");
     const delBtn = document.createElement("button");
@@ -427,6 +470,8 @@ function renderOp() {
 
     tr.appendChild(nameTd);
     tr.appendChild(modeTd);
+    tr.appendChild(costTd);
+    tr.appendChild(markupTd);
     tr.appendChild(rateTd);
     tr.appendChild(delTd);
     tbody.appendChild(tr);
@@ -434,7 +479,7 @@ function renderOp() {
 }
 
 document.getElementById("addRowOp").onclick = () => {
-  opData.push({ name: "", mode: "pc", rate: 0 });
+  opData.push({ name: "", mode: "pc", cost: 0, markup_percent: 0 });
   renderOp();
 };
 
@@ -452,7 +497,16 @@ document.getElementById("fileInputOp").addEventListener("change", (e) => {
     try {
       const parsed = JSON.parse(evt.target.result);
       if (!Array.isArray(parsed)) throw new Error("not array");
-      opData = parsed;
+      // Файл operations.json хранит только name/mode/rate — при загрузке кладём rate
+      // как ранее сохранённый тариф (на случай, если себестоимость ещё не заполнена),
+      // себестоимость/наценку оставляем пустыми для донаполнения, если их раньше не было
+      opData = parsed.map(p => ({
+        name: p.name || "",
+        mode: p.mode || "pc",
+        cost: p.cost !== undefined ? p.cost : "",
+        markup_percent: p.markup_percent !== undefined ? p.markup_percent : 0,
+        _existing_rate: p.rate
+      }));
       renderOp();
       document.getElementById("statusOp").textContent = `Загружено: ${file.name} (${opData.length} строк)`;
     } catch (err) {
@@ -465,7 +519,17 @@ document.getElementById("fileInputOp").addEventListener("change", (e) => {
 document.getElementById("downloadOp").onclick = () => {
   const cleaned = opData
     .filter(item => item.name && item.name.trim())
-    .map(item => ({ name: item.name.trim(), mode: item.mode, rate: item.rate }));
+    .map(item => {
+      const computedRate = opSellRate(item);
+      const rate = computedRate > 0 ? computedRate : (item._existing_rate || 0);
+      return {
+        name: item.name.trim(),
+        mode: item.mode,
+        rate: Math.round(rate * 100) / 100,
+        cost: item.cost || 0,
+        markup_percent: item.markup_percent !== undefined ? item.markup_percent : 0
+      };
+    });
   const json = JSON.stringify(cleaned, null, 2);
   const blob = new Blob([json], { type: "application/json" });
   const url = URL.createObjectURL(blob);
@@ -474,7 +538,7 @@ document.getElementById("downloadOp").onclick = () => {
   a.download = "operations.json";
   a.click();
   URL.revokeObjectURL(url);
-  document.getElementById("statusOp").textContent = "Скачан файл: operations.json";
+  document.getElementById("statusOp").textContent = "Скачан файл: operations.json (с себестоимостью)";
 };
 
 // ---------- Материал -> Операции ----------
