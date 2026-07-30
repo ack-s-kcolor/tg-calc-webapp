@@ -107,8 +107,8 @@
   {
     "name": "Плоттерная резка кв/м",
     "mode": "sqm",
-    "rate": 600,
-    "cost": "600",
+    "rate": 300,
+    "cost": "300",
     "markup_percent": 0
   },
   {

@@ -238,5 +238,17 @@
     "length_m": "",
     "purchase_total": "4668",
     "markup_percent": 80
+  },
+  {
+    "name": "Orajet 3640 1,26",
+    "mode": "sqm",
+    "rate": 341.43,
+    "supplier": "Чичерин",
+    "link": "",
+    "width_mm": "1260",
+    "height_mm": "50000",
+    "length_m": "",
+    "purchase_total": "11950",
+    "markup_percent": 80
   }
 ]

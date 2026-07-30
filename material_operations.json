@@ -139,5 +139,13 @@
     "material": "Монтажная пленка 0,5м",
     "operations": [],
     "no_operations": true
+  },
+  {
+    "material": "Orajet 3640 1,26",
+    "operations": [
+      "УФ печать",
+      "Плоттерная резка кв/м"
+    ],
+    "no_operations": false
   }
 ]
