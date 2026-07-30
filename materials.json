@@ -205,8 +205,8 @@
   },
   {
     "name": "Пленка PloPlo 10м 1,2",
-    "mode": "lm",
-    "rate": 550.8,
+    "mode": "sqm",
+    "rate": 451.48,
     "supplier": "Мальцева",
     "link": "",
     "width_mm": "1220",
