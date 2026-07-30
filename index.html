@@ -450,6 +450,33 @@ function render() {
     return;
   }
 
+  if (state.step === "edit_operation_length") {
+    const { componentIndex, opIndex } = state.editingOp;
+    const c = state.components[componentIndex];
+    const op = c.ops[opIndex];
+    const perim = perimeterFor(c);
+    app.innerHTML = `
+      <h1>${op.name}</h1>
+      <div class="hint">${c.material.name} · ${c.height}x${c.width}мм, ${c.qty} шт</div>
+      <div class="hint">Периметр по габаритам компонента: ${perim.toFixed(2)} м на 1 шт</div>
+      <label>Длина реза на 1 шт, м</label>
+      <input type="number" step="0.01" id="edit_op_len" value="${(op.length_m || 0).toFixed(2)}">
+      <button class="btn btn-primary" id="save">Сохранить</button>
+      <button class="btn secondary" id="usePerim">Использовать периметр (${perim.toFixed(2)} м)</button>
+    `;
+    document.getElementById("save").onclick = () => {
+      op.length_m = parseFloat(document.getElementById("edit_op_len").value) || 0;
+      op.sum = opSumFor(c, op);
+      goBack();
+    };
+    document.getElementById("usePerim").onclick = () => {
+      op.length_m = perim;
+      op.sum = opSumFor(c, op);
+      goBack();
+    };
+    return;
+  }
+
   if (state.step === "operation_search") {
     const allowedOps = getAllowedOperations(state.draft.material.name);
     renderSearchScreen(
@@ -528,12 +555,18 @@ function render() {
 
   if (state.step === "component_done") {
     const c = state.components[state.components.length - 1];
-    let opsHtml = c.ops.map((o, opIdx) =>
-      `<div class="op-row">
+    let opsHtml = c.ops.map((o, opIdx) => {
+      const editBtn = o.mode === "lm"
+        ? `<button class="btn btn-sm" onclick="editOperationLength(${state.components.length - 1}, ${opIdx})">✎</button>`
+        : "";
+      return `<div class="op-row">
         <div class="op-info"><span class="name">${o.name}</span><span class="sum">${o.sum.toFixed(0)} руб.</span></div>
-        <button class="btn btn-sm" onclick="deleteOperation(${state.components.length - 1}, ${opIdx})" style="background:#e5484d; color:#fff;">✕</button>
-      </div>`
-    ).join("");
+        <div style="display:flex; gap:4px;">
+          ${editBtn}
+          <button class="btn btn-sm" onclick="deleteOperation(${state.components.length - 1}, ${opIdx})" style="background:#e5484d; color:#fff;">✕</button>
+        </div>
+      </div>`;
+    }).join("");
     app.innerHTML = `
       <h1>Компонент готов</h1>
       <div class="summary-line"><div class="name">${c.material.name}</div><div class="sum">${c.materialSum.toFixed(0)} руб.</div></div>
@@ -565,12 +598,18 @@ function render() {
   if (state.step === "final") {
     let compHtml = state.components.map((c, i) => {
       const isOpen = expandedComponents.has(i);
-      const opsHtml = c.ops.map((o, opIdx) =>
-        `<div class="op-row" style="margin-left:14px; border-left:2px solid var(--tg-theme-hint-color,#cccccc); padding-left:10px;">
+      const opsHtml = c.ops.map((o, opIdx) => {
+        const editBtn = o.mode === "lm"
+          ? `<button class="btn btn-sm" onclick="editOperationLength(${i}, ${opIdx})">✎</button>`
+          : "";
+        return `<div class="op-row" style="margin-left:14px; border-left:2px solid var(--tg-theme-hint-color,#cccccc); padding-left:10px;">
           <div class="op-info"><span class="name">${o.name}</span><span class="sum">${o.sum.toFixed(0)} руб.</span></div>
-          <button class="btn btn-sm" onclick="deleteOperation(${i}, ${opIdx})" style="background:#e5484d; color:#fff;">✕</button>
-        </div>`
-      ).join("");
+          <div style="display:flex; gap:4px;">
+            ${editBtn}
+            <button class="btn btn-sm" onclick="deleteOperation(${i}, ${opIdx})" style="background:#e5484d; color:#fff;">✕</button>
+          </div>
+        </div>`;
+      }).join("");
 
       const detailsHtml = isOpen ? `
         <div class="summary-line" style="background:transparent; padding-top:2px; padding-bottom:0;">
@@ -647,6 +686,26 @@ function render() {
 function deleteOperation(componentIndex, opIndex) {
   state.components[componentIndex].ops.splice(opIndex, 1);
   render();
+}
+
+function perimeterFor(c) {
+  return 2 * (c.height + c.width) / 1000;
+}
+
+function opSumFor(c, op) {
+  if (op.mode === "sqm") {
+    const area = (c.height / 1000) * (c.width / 1000);
+    return area * c.qty * op.rate + (op.setup_cost || 0);
+  }
+  if (op.mode === "lm") {
+    return (op.length_m || 0) * c.qty * op.rate + (op.setup_cost || 0);
+  }
+  return c.qty * op.rate + (op.setup_cost || 0);
+}
+
+function editOperationLength(componentIndex, opIndex) {
+  state.editingOp = { componentIndex, opIndex };
+  goToStep("edit_operation_length");
 }
 
 function deleteComponent(index) {
