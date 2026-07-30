@@ -4,7 +4,7 @@
     "operations": [
       "УФ печать",
       "фрезеровка",
-      "ручная резка в размер",
+      "УФ печать с белым",
       "резка пвх 5мм"
     ],
     "no_operations": false
@@ -14,38 +14,30 @@
     "operations": [
       "УФ печать",
       "фрезеровка",
-      "ручная резка в размер",
+      "УФ печать с белым",
       "резка пвх 3мм"
-    ],
-    "no_operations": false
-  },
-  {
-    "material": "оргстекло 2мм",
-    "operations": [
-      "УФ печать",
-      "фрезеровка"
-    ],
-    "no_operations": false
-  },
-  {
-    "material": "оргстекло 5мм",
-    "operations": [
-      "УФ печать",
-      "фрезеровка"
     ],
     "no_operations": false
   },
   {
     "material": "акрил 2мм",
     "operations": [
-      "УФ печать"
+      "УФ печать",
+      "фрезеровка",
+      "УФ печать с белым",
+      "лазерная резка 2мм",
+      "гравировка"
     ],
     "no_operations": false
   },
   {
     "material": "акрил 4мм",
     "operations": [
-      "УФ печать"
+      "УФ печать",
+      "фрезеровка",
+      "УФ печать с белым",
+      "лазерная резка 4мм",
+      "гравировка"
     ],
     "no_operations": false
   },
@@ -54,7 +46,7 @@
     "operations": [
       "УФ печать",
       "фрезеровка",
-      "ручная резка в размер"
+      "УФ печать с белым"
     ],
     "no_operations": false
   },
@@ -71,7 +63,7 @@
   {
     "material": "профиль аллюминиевый",
     "operations": [],
-    "no_operations": true
+    "no_operations": false
   },
   {
     "material": "пленка GRAFIX, серия Color, золотая, глянцевая",
@@ -80,36 +72,71 @@
   },
   {
     "material": "Двухслойный пластик 1,5 серебро царапанное",
-    "operations": [
-      "УФ печать",
-      "ручная резка в размер",
-      "лазерная резка 1,5мм"
-    ],
+    "operations": [],
     "no_operations": false
   },
   {
     "material": "пленка прозрачная матовая для ламинации",
-    "operations": [
-      "УФ печать",
-      "ручная резка в размер",
-      "ручная резка"
-    ],
+    "operations": [],
     "no_operations": false
   },
   {
     "material": "баннер 440гр 2,2х50",
+    "operations": [],
+    "no_operations": false
+  },
+  {
+    "material": "акрил 2мм модуль",
+    "operations": [],
+    "no_operations": false
+  },
+  {
+    "material": "баннер 410гр 1,6",
+    "operations": [],
+    "no_operations": false
+  },
+  {
+    "material": "баннер 440гр 2,2",
+    "operations": [],
+    "no_operations": false
+  },
+  {
+    "material": "прагматик пвх 5мм",
     "operations": [
-      "ручная резка"
+      "УФ печать",
+      "фрезеровка",
+      "УФ печать с белым",
+      "резка пвх 5мм"
     ],
     "no_operations": false
   },
   {
-    "material": "П-профиль торцевой 4мм серебро",
+    "material": "прагматик пвх 3мм",
+    "operations": [
+      "УФ печать",
+      "фрезеровка",
+      "УФ печать с белым",
+      "резка пвх 3мм"
+    ],
+    "no_operations": false
+  },
+  {
+    "material": "Пленка PloPlo 10м 1,2",
+    "operations": [
+      "УФ печать",
+      "ручная резка",
+      "Плоттерная резка кв/м",
+      "Плоттерная резка п/м"
+    ],
+    "no_operations": false
+  },
+  {
+    "material": "Монтажная пленка 1м",
     "operations": [],
     "no_operations": true
   },
   {
-    "material": "П-профиль торцевой 4мм черный",
+    "material": "Монтажная пленка 0,5м",
     "operations": [],
     "no_operations": true
   }
