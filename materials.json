@@ -262,5 +262,29 @@
     "length_m": "",
     "purchase_total": "450",
     "markup_percent": 80
+  },
+  {
+    "name": "П-профиль ад 4мм черный",
+    "mode": "lm",
+    "rate": 453.33,
+    "supplier": "Глобус",
+    "link": "",
+    "width_mm": "",
+    "height_mm": "",
+    "length_m": "3",
+    "purchase_total": "340",
+    "markup_percent": "300"
+  },
+  {
+    "name": "П-профиль ад 4мм серебро",
+    "mode": "lm",
+    "rate": 400,
+    "supplier": "Глобус",
+    "link": "",
+    "width_mm": "",
+    "height_mm": "",
+    "length_m": "3",
+    "purchase_total": "300",
+    "markup_percent": "300"
   }
 ]

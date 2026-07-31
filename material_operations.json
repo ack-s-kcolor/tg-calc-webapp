@@ -72,7 +72,11 @@
   },
   {
     "material": "Двухслойный пластик 1,5 серебро царапанное",
-    "operations": [],
+    "operations": [
+      "УФ печать",
+      "лазерная резка 1,5мм",
+      "гравировка"
+    ],
     "no_operations": false
   },
   {
@@ -157,5 +161,15 @@
       "ручная резка"
     ],
     "no_operations": false
+  },
+  {
+    "material": "П-профиль ад 4мм черный",
+    "operations": [],
+    "no_operations": true
+  },
+  {
+    "material": "П-профиль ад 4мм серебро",
+    "operations": [],
+    "no_operations": true
   }
 ]
