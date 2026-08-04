@@ -330,10 +330,12 @@ function materialSum() {
 }
 
 function opSum(op) {
-  if (op.mode === "sqm") return area() * state.draft.qty * op.rate + (op.setup_cost || 0);
-  if (op.mode === "lm") return (op.length_m || 0) * state.draft.qty * op.rate + (op.setup_cost || 0);
-  if (op.mode === "grommet") return (op.grommet_count || 0) * state.draft.qty * op.rate + (op.setup_cost || 0);
-  return state.draft.qty * op.rate + (op.setup_cost || 0);
+  let raw;
+  if (op.mode === "sqm") raw = area() * state.draft.qty * op.rate + (op.setup_cost || 0);
+  else if (op.mode === "lm") raw = (op.length_m || 0) * state.draft.qty * op.rate + (op.setup_cost || 0);
+  else if (op.mode === "grommet") raw = (op.grommet_count || 0) * state.draft.qty * op.rate + (op.setup_cost || 0);
+  else raw = state.draft.qty * op.rate + (op.setup_cost || 0);
+  return op.min_cost ? Math.max(raw, op.min_cost) : raw;
 }
 
 function componentTotal(c) {
@@ -551,7 +553,7 @@ function render() {
       "Операция",
       "Введите название операции...",
       (o) => {
-        state.opDraft = { name: o.name, mode: o.mode, rate: o.rate, length_m: 0, setup_cost: 0, grommet_count: 0, spacing_cm: 30 };
+        state.opDraft = { name: o.name, mode: o.mode, rate: o.rate, length_m: 0, setup_cost: 0, grommet_count: 0, spacing_cm: 30, min_cost: o.min_cost || 0 };
         if (o.mode === "lm") {
           goToStep("operation_length");
         } else if (o.mode === "grommet") {
@@ -663,7 +665,7 @@ function render() {
           : (o.mode === "grommet"
             ? `<button class="btn btn-sm" onclick="editOperationGrommet(${state.components.length - 1}, ${opIdx})">✎</button>`
             : ""));
-      const detail = calcDetailText(o.mode, o.rate, areaFor(c), o.length_m, c.height, c.width, o.grommet_count, o.spacing_cm);
+      const detail = calcDetailText(o.mode, o.rate, areaFor(c), o.length_m, c.height, c.width, o.grommet_count, o.spacing_cm, o.min_cost, o.sum);
       return `<div class="op-row">
         <div class="op-info">
           <div class="name-line"><span class="name">${o.name}</span><span class="sum">${o.sum.toFixed(0)} руб.</span></div>
@@ -716,7 +718,7 @@ function render() {
             : (o.mode === "grommet"
               ? `<button class="btn btn-sm" onclick="editOperationGrommet(${i}, ${opIdx})">✎</button>`
               : ""));
-        const detail = calcDetailText(o.mode, o.rate, areaFor(c), o.length_m, c.height, c.width, o.grommet_count, o.spacing_cm);
+        const detail = calcDetailText(o.mode, o.rate, areaFor(c), o.length_m, c.height, c.width, o.grommet_count, o.spacing_cm, o.min_cost, o.sum);
         return `<div class="op-row" style="margin-left:14px; border-left:2px solid var(--tg-theme-hint-color,#cccccc); padding-left:10px;">
           <div class="op-info">
             <div class="name-line"><span class="name">${o.name}</span><span class="sum">${o.sum.toFixed(0)} руб.</span></div>
@@ -815,25 +817,31 @@ function areaFor(c) {
   return (c.height / 1000) * (c.width / 1000);
 }
 
-function calcDetailText(mode, rate, area, lengthM, height, width, grommetCount, spacingCm) {
+function calcDetailText(mode, rate, area, lengthM, height, width, grommetCount, spacingCm, minCost, sum) {
   const dims = (height && width) ? `${height}x${width}мм · ` : "";
-  if (mode === "sqm") return `${dims}${area.toFixed(4)} м² × ${rate} руб/м²`;
-  if (mode === "lm") return `${dims}${(lengthM || 0).toFixed(2)} м × ${rate} руб/м.п.`;
-  if (mode === "grommet") return `${dims}${grommetCount || 0} шт (шаг ${spacingCm || 30} см) × ${rate} руб/шт`;
-  return `${dims}${rate} руб/шт`;
+  let base;
+  if (mode === "sqm") base = `${dims}${area.toFixed(4)} м² × ${rate} руб/м²`;
+  else if (mode === "lm") base = `${dims}${(lengthM || 0).toFixed(2)} м × ${rate} руб/м.п.`;
+  else if (mode === "grommet") base = `${dims}${grommetCount || 0} шт (шаг ${spacingCm || 30} см) × ${rate} руб/шт`;
+  else base = `${dims}${rate} руб/шт`;
+  if (minCost && sum !== undefined && Math.abs(sum - minCost) < 0.01) {
+    base += ` · применён минимум ${minCost} руб.`;
+  }
+  return base;
 }
 
 function opSumFor(c, op) {
+  let raw;
   if (op.mode === "sqm") {
-    return areaFor(c) * c.qty * op.rate + (op.setup_cost || 0);
+    raw = areaFor(c) * c.qty * op.rate + (op.setup_cost || 0);
+  } else if (op.mode === "lm") {
+    raw = (op.length_m || 0) * c.qty * op.rate + (op.setup_cost || 0);
+  } else if (op.mode === "grommet") {
+    raw = (op.grommet_count || 0) * c.qty * op.rate + (op.setup_cost || 0);
+  } else {
+    raw = c.qty * op.rate + (op.setup_cost || 0);
   }
-  if (op.mode === "lm") {
-    return (op.length_m || 0) * c.qty * op.rate + (op.setup_cost || 0);
-  }
-  if (op.mode === "grommet") {
-    return (op.grommet_count || 0) * c.qty * op.rate + (op.setup_cost || 0);
-  }
-  return c.qty * op.rate + (op.setup_cost || 0);
+  return op.min_cost ? Math.max(raw, op.min_cost) : raw;
 }
 
 function editOperationLength(componentIndex, opIndex) {

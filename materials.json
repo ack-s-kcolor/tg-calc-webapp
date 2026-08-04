@@ -206,26 +206,26 @@
   {
     "name": "Монтажная пленка 1м",
     "mode": "sqm",
-    "rate": 336.13,
+    "rate": 410.83,
     "supplier": "Мальцева",
     "link": "",
     "width_mm": "1000",
     "height_mm": "50000",
     "length_m": "",
     "purchase_total": "9337",
-    "markup_percent": 80
+    "markup_percent": "120"
   },
   {
     "name": "Монтажная пленка 0,5м",
     "mode": "sqm",
-    "rate": 336.1,
+    "rate": 410.78,
     "supplier": "Мальцева",
     "link": "",
     "width_mm": "500",
     "height_mm": "50000",
     "length_m": "",
     "purchase_total": "4668",
-    "markup_percent": 80
+    "markup_percent": "120"
   },
   {
     "name": "Orajet 3640 1,26",
@@ -274,5 +274,29 @@
     "length_m": "3",
     "purchase_total": "300",
     "markup_percent": "300"
+  },
+  {
+    "name": "Пленка серебро/золото Китой матовая",
+    "mode": "sqm",
+    "rate": 450,
+    "supplier": "Мальцева",
+    "link": "",
+    "width_mm": "1000",
+    "height_mm": "1000",
+    "length_m": "",
+    "purchase_total": "250",
+    "markup_percent": 80
+  },
+  {
+    "name": "Двухсторонняя клеевая плёнка ZENOFIX 345",
+    "mode": "sqm",
+    "rate": 1337.6,
+    "supplier": "Zenon",
+    "link": "https://zenonline.ru/cat/00000034868",
+    "width_mm": "1000",
+    "height_mm": "1000",
+    "length_m": "",
+    "purchase_total": "608",
+    "markup_percent": "120"
   }
 ]

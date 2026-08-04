@@ -144,11 +144,12 @@
   <table>
     <thead>
       <tr>
-        <th style="width:32%">Название операции</th>
-        <th style="width:14%">Режим</th>
-        <th style="width:14%">Себестоимость</th>
-        <th style="width:12%">Наценка, %</th>
-        <th style="width:14%">Тариф (продажа)</th>
+        <th style="width:26%">Название операции</th>
+        <th style="width:12%">Режим</th>
+        <th style="width:12%">Себестоимость</th>
+        <th style="width:10%">Наценка, %</th>
+        <th style="width:12%">Тариф (продажа)</th>
+        <th style="width:14%">Мин. стоимость операции</th>
         <th style="width:14%"></th>
       </tr>
     </thead>
@@ -461,6 +462,15 @@ function renderOp() {
     rateTd.id = "opRate" + i;
     rateTd.textContent = opSellRate(item).toFixed(2);
 
+    const minCostTd = document.createElement("td");
+    const minCostInput = document.createElement("input");
+    minCostInput.type = "number";
+    minCostInput.step = "0.01";
+    minCostInput.value = item.min_cost ?? 0;
+    minCostInput.title = "Если расчётная сумма операции меньше этого значения — возьмётся оно";
+    minCostInput.oninput = (e) => { opData[i].min_cost = e.target.value; };
+    minCostTd.appendChild(minCostInput);
+
     const delTd = document.createElement("td");
     const delBtn = document.createElement("button");
     delBtn.className = "danger";
@@ -473,13 +483,14 @@ function renderOp() {
     tr.appendChild(costTd);
     tr.appendChild(markupTd);
     tr.appendChild(rateTd);
+    tr.appendChild(minCostTd);
     tr.appendChild(delTd);
     tbody.appendChild(tr);
   });
 }
 
 document.getElementById("addRowOp").onclick = () => {
-  opData.push({ name: "", mode: "pc", cost: 0, markup_percent: 0 });
+  opData.push({ name: "", mode: "pc", cost: 0, markup_percent: 0, min_cost: 0 });
   renderOp();
 };
 
@@ -505,6 +516,7 @@ document.getElementById("fileInputOp").addEventListener("change", (e) => {
         mode: p.mode || "pc",
         cost: p.cost !== undefined ? p.cost : "",
         markup_percent: p.markup_percent !== undefined ? p.markup_percent : 0,
+        min_cost: p.min_cost !== undefined ? p.min_cost : 0,
         _existing_rate: p.rate
       }));
       renderOp();
@@ -527,7 +539,8 @@ document.getElementById("downloadOp").onclick = () => {
         mode: item.mode,
         rate: Math.round(rate * 100) / 100,
         cost: item.cost || 0,
-        markup_percent: item.markup_percent !== undefined ? item.markup_percent : 0
+        markup_percent: item.markup_percent !== undefined ? item.markup_percent : 0,
+        min_cost: item.min_cost || 0
       };
     });
   const json = JSON.stringify(cleaned, null, 2);
