@@ -117,5 +117,26 @@
     "rate": 15,
     "cost": "15",
     "markup_percent": 0
+  },
+  {
+    "name": "уф печать баннера",
+    "mode": "sqm",
+    "rate": 800,
+    "cost": "800",
+    "markup_percent": 0
+  },
+  {
+    "name": "установка люверсов",
+    "mode": "grommet",
+    "rate": 18.2,
+    "cost": "2.6",
+    "markup_percent": "600"
+  },
+  {
+    "name": "проклейка баннера",
+    "mode": "lm",
+    "rate": 50,
+    "cost": "50",
+    "markup_percent": 0
   }
 ]

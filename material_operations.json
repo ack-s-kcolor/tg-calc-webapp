@@ -85,23 +85,26 @@
     "no_operations": false
   },
   {
-    "material": "баннер 440гр 2,2х50",
-    "operations": [],
-    "no_operations": false
-  },
-  {
     "material": "акрил 2мм модуль",
     "operations": [],
     "no_operations": false
   },
   {
     "material": "баннер 410гр 1,6",
-    "operations": [],
+    "operations": [
+      "уф печать баннера",
+      "установка люверсов",
+      "проклейка баннера"
+    ],
     "no_operations": false
   },
   {
     "material": "баннер 440гр 2,2",
-    "operations": [],
+    "operations": [
+      "уф печать баннера",
+      "установка люверсов",
+      "проклейка баннера"
+    ],
     "no_operations": false
   },
   {
