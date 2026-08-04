@@ -22,63 +22,63 @@
   },
   {
     "name": "УФ печать с белым",
-    "mode": "pc",
+    "mode": "sqm",
     "rate": 1400,
     "cost": "1400",
     "markup_percent": 0
   },
   {
     "name": "лазерная резка 1мм",
-    "mode": "pc",
+    "mode": "lm",
     "rate": 80,
     "cost": "20",
     "markup_percent": "300"
   },
   {
     "name": "лазерная резка 1,5мм",
-    "mode": "pc",
+    "mode": "lm",
     "rate": 80,
     "cost": "20",
     "markup_percent": "300"
   },
   {
     "name": "лазерная резка 2мм",
-    "mode": "pc",
+    "mode": "lm",
     "rate": 100,
     "cost": "25",
     "markup_percent": "300"
   },
   {
     "name": "лазерная резка 3мм",
-    "mode": "pc",
+    "mode": "lm",
     "rate": 120,
     "cost": "30",
     "markup_percent": "300"
   },
   {
     "name": "лазерная резка 4мм",
-    "mode": "pc",
+    "mode": "lm",
     "rate": 140,
     "cost": "40",
     "markup_percent": "250"
   },
   {
     "name": "лазерная резка 5мм",
-    "mode": "pc",
+    "mode": "lm",
     "rate": 175,
     "cost": "50",
     "markup_percent": "250"
   },
   {
     "name": "лазерная резка 8мм",
-    "mode": "pc",
+    "mode": "lm",
     "rate": 245,
     "cost": "70",
     "markup_percent": "250"
   },
   {
     "name": "лазерная резка 10мм",
-    "mode": "pc",
+    "mode": "lm",
     "rate": 280,
     "cost": "80",
     "markup_percent": "250"
