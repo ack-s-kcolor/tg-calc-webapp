@@ -185,5 +185,19 @@
       "оклейка пленкой"
     ],
     "no_operations": false
+  },
+  {
+    "material": "Двухсторонняя клеевая плёнка ZENOFIX 345",
+    "operations": [],
+    "no_operations": true
+  },
+  {
+    "material": "Полистирол зеркальный ZENOMIRROR золото/серебро",
+    "operations": [
+      "УФ печать",
+      "УФ печать с белым",
+      "лазерная резка 1,5мм"
+    ],
+    "no_operations": false
   }
 ]

@@ -298,5 +298,17 @@
     "length_m": "",
     "purchase_total": "608",
     "markup_percent": "120"
+  },
+  {
+    "name": "Полистирол зеркальный ZENOMIRROR золото/серебро",
+    "mode": "sqm",
+    "rate": 2234.7,
+    "supplier": "Zenon",
+    "link": "https://zenonline.ru/cat/00000025364",
+    "width_mm": "1220",
+    "height_mm": "2440",
+    "length_m": "",
+    "purchase_total": "2619",
+    "markup_percent": "154"
   }
 ]
