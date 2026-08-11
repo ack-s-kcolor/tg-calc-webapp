@@ -310,5 +310,29 @@
     "length_m": "",
     "purchase_total": "2619",
     "markup_percent": "154"
+  },
+  {
+    "name": "монолитный поликарбонат прозрачный 2мм",
+    "mode": "sqm",
+    "rate": 2058.38,
+    "supplier": "Мальцева",
+    "link": "",
+    "width_mm": "2050",
+    "height_mm": "3050",
+    "length_m": "",
+    "purchase_total": "7150",
+    "markup_percent": 80
+  },
+  {
+    "name": "монолитный поликарбонат прозрачный 5мм",
+    "mode": "sqm",
+    "rate": 2994,
+    "supplier": "Мальцева",
+    "link": "",
+    "width_mm": "2050",
+    "height_mm": "3050",
+    "length_m": "",
+    "purchase_total": "10400",
+    "markup_percent": 80
   }
 ]

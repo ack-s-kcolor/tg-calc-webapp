@@ -166,5 +166,21 @@
     "cost": "300",
     "markup_percent": "",
     "min_cost": "100"
+  },
+  {
+    "name": "гиб до 5мм толщина",
+    "mode": "lm",
+    "rate": 100,
+    "cost": "100",
+    "markup_percent": 0,
+    "min_cost": "200"
+  },
+  {
+    "name": "выборка и накатка монтажной пленки",
+    "mode": "sqm",
+    "rate": 150,
+    "cost": "150",
+    "markup_percent": 0,
+    "min_cost": 0
   }
 ]
