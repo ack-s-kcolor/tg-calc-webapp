@@ -178,8 +178,8 @@
   {
     "name": "выборка и накатка монтажной пленки",
     "mode": "sqm",
-    "rate": 500,
-    "cost": "500",
+    "rate": 800,
+    "cost": "800",
     "markup_percent": 0,
     "min_cost": 0
   }
