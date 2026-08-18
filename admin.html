@@ -111,6 +111,7 @@
   <button class="tab active" id="tab-mat">Материалы</button>
   <button class="tab" id="tab-op">Операции</button>
   <button class="tab" id="tab-link">Материал → Операции</button>
+  <button class="tab" id="tab-tpl">Шаблоны заказов</button>
 </div>
 
 <!-- МАТЕРИАЛЫ -->
@@ -205,6 +206,39 @@
   <div class="status" id="statusLink"></div>
 </div>
 
+<!-- ШАБЛОНЫ ЗАКАЗОВ -->
+<div class="section" id="section-tpl">
+  <div class="hint" style="margin-top:0;">
+    Шаблон — это готовый заказ (изделие + компоненты + операции), сохранённый под именем, чтобы быстро
+    начинать с него типовые заказы, а не заполнять всё с нуля. Загрузите уже существующий список шаблонов
+    (необязательно, для донаполнения), затем добавьте новый шаблон, загрузив ранее скачанный файл заказа
+    (.xlsx или .json из калькулятора) и дав ему имя.
+  </div>
+
+  <div class="file-row">
+    <label>Существующий список шаблонов (необязательно): <input type="file" id="fileInputTplExisting" accept=".json"></label>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th style="width:260px">Название шаблона</th>
+        <th style="width:200px">Файл заказа (.xlsx/.json)</th>
+        <th style="width:250px">Содержимое</th>
+        <th style="width:90px"></th>
+      </tr>
+    </thead>
+    <tbody id="rowsTpl"></tbody>
+  </table>
+
+  <div class="actions">
+    <button class="secondary" id="addRowTpl">+ Добавить шаблон</button>
+    <button id="downloadTpl">Скачать templates.json</button>
+  </div>
+  <div class="status" id="statusTpl"></div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 let matData = [];
 let opData = [];
@@ -213,19 +247,25 @@ function setTab(t) {
   document.getElementById("tab-mat").classList.toggle("active", t === "mat");
   document.getElementById("tab-op").classList.toggle("active", t === "op");
   document.getElementById("tab-link").classList.toggle("active", t === "link");
+  document.getElementById("tab-tpl").classList.toggle("active", t === "tpl");
   document.getElementById("section-mat").classList.toggle("active", t === "mat");
   document.getElementById("section-op").classList.toggle("active", t === "op");
   document.getElementById("section-link").classList.toggle("active", t === "link");
+  document.getElementById("section-tpl").classList.toggle("active", t === "tpl");
 }
 document.getElementById("tab-mat").onclick = () => setTab("mat");
 document.getElementById("tab-op").onclick = () => setTab("op");
 document.getElementById("tab-link").onclick = () => setTab("link");
+document.getElementById("tab-tpl").onclick = () => setTab("tpl");
 
 // ---------- Материалы ----------
 
 function area(item) {
   if (item.mode === "lm") {
     return parseFloat(item.length_m) || 0;
+  }
+  if (item.mode === "pc") {
+    return 1; // за штуку — закупка ниже уже цена за 1 шт, площадь/длина не участвуют
   }
   return (parseFloat(item.width_mm) || 0) / 1000 * (parseFloat(item.height_mm) || 0) / 1000;
 }
@@ -247,12 +287,14 @@ function updateComputedRow(i) {
 }
 
 function updateFieldAvailability(i) {
-  const isLm = matData[i].mode === "lm";
+  const mode = matData[i].mode;
+  const isLm = mode === "lm";
+  const isPc = mode === "pc";
   const widthInput = document.getElementById("matWidth" + i);
   const heightInput = document.getElementById("matHeight" + i);
   const lengthInput = document.getElementById("matLength" + i);
-  if (widthInput) { widthInput.disabled = isLm; widthInput.style.opacity = isLm ? 0.35 : 1; }
-  if (heightInput) { heightInput.disabled = isLm; heightInput.style.opacity = isLm ? 0.35 : 1; }
+  if (widthInput) { widthInput.disabled = isLm || isPc; widthInput.style.opacity = (isLm || isPc) ? 0.35 : 1; }
+  if (heightInput) { heightInput.disabled = isLm || isPc; heightInput.style.opacity = (isLm || isPc) ? 0.35 : 1; }
   if (lengthInput) { lengthInput.disabled = !isLm; lengthInput.style.opacity = isLm ? 1 : 0.35; }
 }
 
@@ -289,7 +331,7 @@ function renderMat() {
 
     const modeTd = document.createElement("td");
     const modeSelect = document.createElement("select");
-    [["sqm", "за м²"], ["lm", "за пог. метр"]].forEach(([val, label]) => {
+    [["sqm", "за м²"], ["lm", "за пог. метр"], ["pc", "за шт"]].forEach(([val, label]) => {
       const opt = document.createElement("option");
       opt.value = val;
       opt.textContent = label;
@@ -368,7 +410,7 @@ document.getElementById("fileInputMat").addEventListener("change", (e) => {
         name: p.name || "",
         supplier: p.supplier || "",
         link: p.link || "",
-        mode: p.mode === "lm" ? "lm" : "sqm",
+        mode: p.mode || "sqm",
         width_mm: p.width_mm || "",
         height_mm: p.height_mm || "",
         length_m: p.length_m || "",
@@ -395,7 +437,7 @@ document.getElementById("downloadMat").onclick = () => {
       const rate = computedRate > 0 ? computedRate : (item._existing_rate || 0);
       return {
         name: item.name.trim(),
-        mode: item.mode === "lm" ? "lm" : "sqm",
+        mode: item.mode || "sqm",
         rate: Math.round(rate * 100) / 100,
         supplier: item.supplier || "",
         link: item.link || "",
@@ -749,6 +791,142 @@ renderMat();
 renderOp();
 makeColumnsResizable(document.querySelector("#section-mat table"));
 makeColumnsResizable(document.querySelector("#section-op table"));
+
+// ---------- Шаблоны заказов ----------
+
+let tplData = []; // [{ name, payload }]
+
+function readOrderPayloadFromFile(file, callback) {
+  const name = file.name.toLowerCase();
+  if (name.endsWith(".json")) {
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        callback(JSON.parse(evt.target.result));
+      } catch (err) {
+        callback(null, "Не корректный JSON-файл.");
+      }
+    };
+    reader.readAsText(file, "utf-8");
+    return;
+  }
+  // .xlsx — данные лежат в скрытом листе RawData (та же логика, что в калькуляторе)
+  const reader = new FileReader();
+  reader.onload = (evt) => {
+    try {
+      const wb = XLSX.read(evt.target.result, { type: "array" });
+      const rawSheet = wb.Sheets["RawData"];
+      if (!rawSheet || !rawSheet["A1"] || !rawSheet["A1"].v) {
+        callback(null, "В файле нет данных для загрузки (лист RawData не найден).");
+        return;
+      }
+      callback(JSON.parse(rawSheet["A1"].v));
+    } catch (err) {
+      callback(null, "Не удалось прочитать xlsx-файл.");
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function renderTpl() {
+  const tbody = document.getElementById("rowsTpl");
+  tbody.innerHTML = "";
+  tplData.forEach((item, i) => {
+    const tr = document.createElement("tr");
+
+    const nameTd = document.createElement("td");
+    const nameInput = document.createElement("input");
+    nameInput.type = "text";
+    nameInput.value = item.name || "";
+    nameInput.placeholder = "Название шаблона";
+    nameInput.oninput = (e) => { tplData[i].name = e.target.value; };
+    nameTd.appendChild(nameInput);
+
+    const fileTd = document.createElement("td");
+    const fileInput = document.createElement("input");
+    fileInput.type = "file";
+    fileInput.accept = ".xlsx,.json";
+    fileInput.addEventListener("change", (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      readOrderPayloadFromFile(file, (payload, err) => {
+        if (err) {
+          document.getElementById("statusTpl").textContent = err;
+          return;
+        }
+        tplData[i].payload = payload;
+        renderTpl();
+      });
+    });
+    fileTd.appendChild(fileInput);
+
+    const contentTd = document.createElement("td");
+    contentTd.style.fontSize = "12px";
+    contentTd.style.color = "#777";
+    if (item.payload) {
+      const compCount = (item.payload.components || []).length;
+      const total = item.payload.total || 0;
+      contentTd.textContent = `${item.payload.product?.name || "?"} · ${compCount} компон. · ${total} руб.`;
+    } else {
+      contentTd.textContent = "Файл не загружен";
+    }
+
+    const delTd = document.createElement("td");
+    const delBtn = document.createElement("button");
+    delBtn.className = "danger";
+    delBtn.textContent = "Удалить";
+    delBtn.onclick = () => { tplData.splice(i, 1); renderTpl(); };
+    delTd.appendChild(delBtn);
+
+    tr.appendChild(nameTd);
+    tr.appendChild(fileTd);
+    tr.appendChild(contentTd);
+    tr.appendChild(delTd);
+    tbody.appendChild(tr);
+  });
+}
+
+document.getElementById("addRowTpl").onclick = () => {
+  tplData.push({ name: "", payload: null });
+  renderTpl();
+};
+
+document.getElementById("fileInputTplExisting").addEventListener("change", (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (evt) => {
+    try {
+      const parsed = JSON.parse(evt.target.result);
+      if (!Array.isArray(parsed)) throw new Error("not array");
+      tplData = parsed.map(p => ({ name: p.name || "", payload: p.payload || null }));
+      renderTpl();
+      document.getElementById("statusTpl").textContent = `Загружено шаблонов: ${tplData.length}`;
+    } catch (err) {
+      document.getElementById("statusTpl").textContent = "Не удалось прочитать файл шаблонов.";
+    }
+  };
+  reader.readAsText(file, "utf-8");
+});
+
+document.getElementById("downloadTpl").onclick = () => {
+  const cleaned = tplData.filter(t => t.name && t.name.trim() && t.payload);
+  if (cleaned.length < tplData.length) {
+    document.getElementById("statusTpl").textContent =
+      "Пропущены шаблоны без названия или без загруженного файла заказа.";
+  }
+  const json = JSON.stringify(cleaned, null, 2);
+  const blob = new Blob([json], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "templates.json";
+  a.click();
+  URL.revokeObjectURL(url);
+  document.getElementById("statusTpl").textContent = "Скачан файл: templates.json";
+};
+
+renderTpl();
 </script>
 
 </body>

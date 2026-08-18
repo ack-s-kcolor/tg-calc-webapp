@@ -145,6 +145,7 @@ if (tg) {
 let materials = [];
 let operations = [];
 let materialOperationsMap = {}; // { "название материала": ["операция1", ...] }
+let templates = []; // [{ name, payload }]
 
 function getAllowedOperations(materialName) {
   const entry = materialOperationsMap[materialName];
@@ -265,6 +266,35 @@ function downloadXlsx(payload) {
   XLSX.writeFile(wb, `${safeName}.xlsx`);
 }
 
+function applyOrderPayload(payload) {
+  state.product = {
+    name: payload.product.name || "",
+    qty: payload.product.qty || 1,
+    multi: true // после загрузки всегда разрешаем добавлять ещё компоненты
+  };
+  state.components = payload.components.map(c => ({
+    material: c.material,
+    height: c.height_mm,
+    width: c.width_mm,
+    qty: c.qty,
+    material_length_m: c.material_length_m || 0,
+    ops: (c.operations || []).map(o => ({
+      name: o.name,
+      mode: o.mode,
+      rate: o.rate,
+      length_m: o.length_m || 0,
+      setup_cost: o.setup_cost || 0,
+      grommet_count: o.grommet_count || 0,
+      spacing_cm: o.spacing_cm || 30,
+      min_cost: o.min_cost || 0,
+      sum: o.sum
+    })),
+    materialSum: c.material_sum
+  }));
+  stepHistory = [];
+  goToStep("component_done");
+}
+
 function loadOrderFromXlsx(file) {
   const statusEl = document.getElementById("loadOrderStatus");
   const reader = new FileReader();
@@ -276,29 +306,7 @@ function loadOrderFromXlsx(file) {
       const cell = rawSheet["A1"];
       if (!cell || !cell.v) throw new Error("empty raw cell");
       const payload = JSON.parse(cell.v);
-
-      state.product = {
-        name: payload.product.name || "",
-        qty: payload.product.qty || 1,
-        multi: true // после загрузки всегда разрешаем добавлять ещё компоненты
-      };
-      state.components = payload.components.map(c => ({
-        material: c.material,
-        height: c.height_mm,
-        width: c.width_mm,
-        qty: c.qty,
-        ops: (c.operations || []).map(o => ({
-          name: o.name,
-          mode: o.mode,
-          rate: o.rate,
-          length_m: o.length_m || 0,
-          setup_cost: o.setup_cost || 0,
-          sum: o.sum
-        })),
-        materialSum: c.material_sum
-      }));
-      stepHistory = [];
-      goToStep("component_done");
+      applyOrderPayload(payload);
     } catch (err) {
       statusEl.textContent = "Не удалось прочитать файл заказа — убедитесь, что это файл, скачанный из этого же калькулятора.";
     }
@@ -359,6 +367,12 @@ function render() {
   document.getElementById("summaryBar").innerHTML = summaryHtml();
 
   if (state.step === "product") {
+    const tplHtml = templates.length > 0
+      ? `
+        <div class="hint" style="margin-top:16px;">Или начните с готового шаблона типового заказа:</div>
+        <div class="list" id="tplList"></div>
+      `
+      : "";
     app.innerHTML = `
       <h1>Новое изделие</h1>
       <label>Название</label>
@@ -366,6 +380,7 @@ function render() {
       <label>Тираж, шт</label>
       <input type="number" id="p_qty" value="${state.product.qty}" min="1">
       <button class="btn btn-primary" id="next">Далее</button>
+      ${tplHtml}
       <div class="hint" style="margin-top:16px;">Или загрузите ранее сохранённый файл заказа (.xlsx):</div>
       <input type="file" id="loadOrderFile" accept=".xlsx">
       <div class="hint" id="loadOrderStatus"></div>
@@ -380,6 +395,17 @@ function render() {
       if (!file) return;
       loadOrderFromXlsx(file);
     });
+    if (templates.length > 0) {
+      const tplList = document.getElementById("tplList");
+      templates.forEach((tpl) => {
+        const btn = document.createElement("button");
+        btn.className = "item";
+        const compCount = (tpl.payload.components || []).length;
+        btn.innerHTML = `<div>${tpl.name}</div><div class="rate">${compCount} компон. · ${tpl.payload.total || 0} руб.</div>`;
+        btn.addEventListener("click", () => applyOrderPayload(tpl.payload));
+        tplList.appendChild(btn);
+      });
+    }
     return;
   }
 
@@ -761,6 +787,7 @@ function render() {
         height_mm: c.height,
         width_mm: c.width,
         qty: c.qty,
+        material_length_m: c.material_length_m || 0,
         material_sum: c.materialSum,
         operations: c.ops,
         component_sum: componentTotal(c)
@@ -951,8 +978,9 @@ function fetchJsonSafe(url, fallback) {
 Promise.all([
   fetch("materials.json?v=" + Date.now(), { cache: "no-store" }).then(r => r.json()),
   fetch("operations.json?v=" + Date.now(), { cache: "no-store" }).then(r => r.json()),
-  fetchJsonSafe("material_operations.json?v=" + Date.now(), [])
-]).then(([m, o, link]) => {
+  fetchJsonSafe("material_operations.json?v=" + Date.now(), []),
+  fetchJsonSafe("templates.json?v=" + Date.now(), [])
+]).then(([m, o, link, tpl]) => {
   materials = m;
   operations = o;
   materialOperationsMap = {};
@@ -962,6 +990,7 @@ Promise.all([
       no_operations: !!entry.no_operations
     };
   });
+  templates = tpl;
   render();
 }).catch(() => {
   document.getElementById("app").innerHTML = "<div class='hint'>Не удалось загрузить справочники</div>";

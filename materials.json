@@ -334,5 +334,17 @@
     "length_m": "",
     "purchase_total": "10400",
     "markup_percent": 80
+  },
+  {
+    "name": "зеркало 500х500 4мм",
+    "mode": "pc",
+    "rate": 760,
+    "supplier": "Дарксал",
+    "link": "",
+    "width_mm": "",
+    "height_mm": "",
+    "length_m": "",
+    "purchase_total": "380",
+    "markup_percent": "100"
   }
 ]
