@@ -1,1 +1,41 @@
-[]
+[
+  {
+    "name": "зеркало",
+    "payload": {
+      "product": {
+        "name": "зеркало",
+        "qty": 1,
+        "multi": false
+      },
+      "components": [
+        {
+          "material": {
+            "name": "зеркало 500х500 4мм",
+            "mode": "pc",
+            "rate": 760
+          },
+          "height_mm": 500,
+          "width_mm": 500,
+          "qty": 1,
+          "material_length_m": 0,
+          "material_sum": 760,
+          "operations": [
+            {
+              "name": "УФ печать",
+              "mode": "sqm",
+              "rate": 1200,
+              "length_m": 0,
+              "setup_cost": 0,
+              "grommet_count": 0,
+              "spacing_cm": 30,
+              "min_cost": 0,
+              "sum": 300
+            }
+          ],
+          "component_sum": 1060
+        }
+      ],
+      "total": 1060
+    }
+  }
+]
