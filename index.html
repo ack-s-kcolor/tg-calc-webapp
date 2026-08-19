@@ -17,12 +17,6 @@
     padding-bottom: 6px;
   }
   #backBtn { margin-bottom: 12px; width: auto; padding: 8px 14px; }
-  .btn-sm {
-    width: auto;
-    padding: 5px 10px;
-    font-size: 12px;
-    margin: 0;
-  }
   .op-row {
     display: flex;
     justify-content: space-between;
@@ -31,6 +25,7 @@
     font-size: 13px;
   }
   .op-row .op-info { display: flex; flex-direction: column; gap: 1px; }
+  .name-line { display: flex; gap: 8px; align-items: baseline; }
   .op-row .op-info .name-line { display: flex; gap: 8px; align-items: baseline; }
   .op-row .op-info .name { font-weight: 400; }
   .op-row .op-info .sum { color: var(--tg-theme-hint-color, #999999); }
@@ -127,6 +122,13 @@
     font-size: 15px;
     width: 100%;
     text-align: left;
+  }
+  .btn-sm {
+    width: auto;
+    padding: 5px 10px;
+    font-size: 12px;
+    margin: 0;
+    text-align: center;
   }
   .item .rate {
     font-size: 12px;
