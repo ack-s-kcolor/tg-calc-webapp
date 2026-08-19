@@ -170,7 +170,6 @@
   <div id="summaryBar"></div>
 </div>
 <div id="app"></div>
-<div id="contextMenu" class="context-menu"></div>
 
 <script>
 const tgRaw = (window.Telegram && window.Telegram.WebApp) ? window.Telegram.WebApp : null;
@@ -429,7 +428,8 @@ function render() {
     document.getElementById("next").onclick = () => {
       state.product.name = document.getElementById("p_name").value.trim() || "Без названия";
       state.product.qty = parseInt(document.getElementById("p_qty").value) || 1;
-      goToStep("type");
+      state.product.multi = true;
+      goToStep("final");
     };
     document.getElementById("loadOrderFile").addEventListener("change", (e) => {
       const file = e.target.files[0];
@@ -829,6 +829,7 @@ function render() {
           </div>
           ${opsHtml}
           <div class="comp-actions">
+            <button class="btn btn-sm" onclick="addOperationToComponent(${i})" style="background:var(--tg-theme-button-color,#2481cc); color:#fff;">+ Операция</button>
             <button class="btn btn-sm" onclick="editMaterial(${i})">Материал</button>
             <button class="btn btn-sm" onclick="deleteComponent(${i})" style="background:#e5484d; color:#fff;">Удалить</button>
           </div>
@@ -859,17 +860,19 @@ function render() {
          <pre style="margin-top:14px; background:var(--tg-theme-secondary-bg-color,#f2f2f2); border-radius:10px; padding:12px; font-size:12px; overflow-x:auto; white-space:pre-wrap; word-break:break-word;">${JSON.stringify(payload, null, 2)}</pre>`;
 
     const emptyHint = state.components.length === 0
-      ? `<div class="hint" style="margin-top:12px;">Материалов пока нет. Нажмите правой кнопкой мыши в любом месте экрана, чтобы добавить первый материал.</div>`
+      ? `<div class="hint" style="margin-top:12px;">Материалов пока нет — нажмите «Добавить материал».</div>`
       : "";
 
     app.innerHTML = `
       <h1>${state.product.name}</h1>
       <div class="hint">Тираж: ${state.product.qty} шт</div>
+      <button class="btn" id="addMaterialBtn" style="background:var(--tg-theme-button-color,#2481cc); color:#fff; margin-bottom:12px;">+ Добавить материал</button>
       ${compHtml}
       ${emptyHint}
       <div class="total"><span>Итого</span><span>${grandTotal().toFixed(0)} руб.</span></div>
       ${actionHtml}
     `;
+    document.getElementById("addMaterialBtn").onclick = () => startComponent();
     document.getElementById("send").onclick = () => {
       if (tg) {
         tg.sendData(JSON.stringify(payload));
@@ -1078,50 +1081,6 @@ function renderSearchScreen(catalog, title, placeholder, onSelect) {
   input.addEventListener("input", (e) => renderList(e.target.value));
   renderList("");
 }
-
-// ---------- Контекстное меню по правому клику (только на итоговом экране) ----------
-
-function hideContextMenu() {
-  document.getElementById("contextMenu").style.display = "none";
-}
-
-function showContextMenu(x, y, target) {
-  if (state.step !== "final") return; // одно окно — только на итоговом экране заказа
-
-  const menu = document.getElementById("contextMenu");
-  const items = [];
-
-  const compEl = target.closest("[data-component-index]");
-  if (compEl) {
-    const idx = parseInt(compEl.getAttribute("data-component-index"));
-    items.push(["+ Добавить операцию к этому материалу", () => addOperationToComponent(idx)]);
-  }
-  items.push(["+ Добавить материал", () => startComponent()]);
-
-  menu.innerHTML = "";
-  items.forEach(([label, action]) => {
-    const btn = document.createElement("button");
-    btn.textContent = label;
-    btn.onclick = () => { action(); hideContextMenu(); };
-    menu.appendChild(btn);
-  });
-
-  const menuWidth = 240;
-  const menuHeight = items.length * 40 + 12;
-  const maxX = window.innerWidth - menuWidth - 10;
-  const maxY = window.innerHeight - menuHeight - 10;
-  menu.style.left = Math.min(x, maxX) + "px";
-  menu.style.top = Math.min(y, maxY) + "px";
-  menu.style.display = "block";
-}
-
-document.addEventListener("contextmenu", (e) => {
-  if (state.step !== "final") return; // вне итогового экрана — обычное меню браузера
-  e.preventDefault();
-  showContextMenu(e.pageX, e.pageY, e.target);
-});
-document.addEventListener("click", () => hideContextMenu());
-document.addEventListener("scroll", () => hideContextMenu());
 
 function fetchJsonSafe(url, fallback) {
   return fetch(url, { cache: "no-store" })
