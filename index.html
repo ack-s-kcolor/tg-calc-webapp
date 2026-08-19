@@ -39,19 +39,20 @@
   }
   .comp-actions .btn-sm { flex: 1; text-align: center; }
   .icon-btn {
-    width: 26px;
-    height: 26px;
+    width: 32px;
+    height: 32px;
     padding: 0;
     border-radius: 50%;
     border: none;
     background: var(--tg-theme-secondary-bg-color, #e5e5e5);
     color: var(--tg-theme-text-color, #000000);
-    font-size: 15px;
+    font-size: 18px;
     line-height: 1;
     cursor: pointer;
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    flex-shrink: 0;
   }
   .icon-btn-danger {
     background: #e5484d;
@@ -840,13 +841,12 @@ function render() {
       return `
         <div data-component-index="${i}" class="summary-line" style="padding-bottom:10px;">
           <div class="name-line" style="display:flex; justify-content:space-between; align-items:center;">
-            <div class="name">${i + 1}. ${c.material.name}</div>
-            <div style="display:flex; align-items:center; gap:4px;">
-              <button class="icon-btn" title="Добавить операцию" onclick="addOperationToComponent(${i})">+</button>
+            <div style="display:flex; align-items:center; gap:6px;">
+              <div class="name">${i + 1}. ${c.material.name}</div>
               <button class="icon-btn" title="Изменить материал" onclick="editMaterial(${i})">↻</button>
               <button class="icon-btn icon-btn-danger" title="Удалить компонент" onclick="deleteComponent(${i})">−</button>
-              <div class="sum">${componentTotal(c).toFixed(0)} руб.</div>
             </div>
+            <div class="sum">${componentTotal(c).toFixed(0)} руб.</div>
           </div>
           <div class="detail">${calcDetailText(c.material.mode, c.material.rate, areaFor(c), c.material_length_m, c.height, c.width)}</div>
           <div class="compact-row">
@@ -856,6 +856,7 @@ function render() {
             ${lenFieldHtml}
           </div>
           ${opsHtml}
+          <button class="icon-btn" title="Добавить операцию" onclick="addOperationToComponent(${i})" style="margin-top:8px;">+</button>
         </div>
       `;
     }).join("<div style='height:10px;'></div>");
