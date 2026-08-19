@@ -370,5 +370,17 @@
     "length_m": "",
     "purchase_total": "360",
     "markup_percent": "100"
+  },
+  {
+    "name": "LORIGLAS САТИН 3мм",
+    "mode": "sqm",
+    "rate": 6753.94,
+    "supplier": "Мальцева",
+    "link": "",
+    "width_mm": "1525",
+    "height_mm": "2050",
+    "length_m": "",
+    "purchase_total": "9597.5",
+    "markup_percent": "120"
   }
 ]
