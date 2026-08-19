@@ -102,6 +102,15 @@
   .compact-row { display: flex; gap: 8px; flex-wrap: wrap; margin: 6px 0; }
   .compact-field { flex: 1; min-width: 70px; max-width: 110px; }
   .compact-field label { font-size: 10px; margin-bottom: 2px; color: var(--tg-theme-hint-color, #999999); }
+  .inline-num {
+    width: 64px;
+    padding: 5px 6px;
+    font-size: 12px;
+    border-radius: 6px;
+    border: 1px solid var(--tg-theme-hint-color, #cccccc);
+    background: var(--tg-theme-secondary-bg-color, #f2f2f2);
+    color: var(--tg-theme-text-color, #000000);
+  }
   .compact-field input {
     width: 100%;
     padding: 6px 8px;
@@ -626,15 +635,14 @@ function render() {
       (o) => {
         state.opDraft = { name: o.name, mode: o.mode, rate: o.rate, length_m: 0, setup_cost: 0, grommet_count: 0, spacing_cm: 30, min_cost: o.min_cost || 0 };
         if (o.mode === "lm") {
-          goToStep("operation_length");
+          state.opDraft.length_m = perimeter();
         } else if (o.mode === "grommet") {
-          goToStep("operation_grommet");
-        } else {
-          state.opDraft.sum = opSum(state.opDraft);
-          state.draft.ops.push(state.opDraft);
-          state.opDraft = null;
-          finishComponent();
+          state.opDraft.grommet_count = Math.ceil(perimeter() / 0.3);
         }
+        state.opDraft.sum = opSum(state.opDraft);
+        state.draft.ops.push(state.opDraft);
+        state.opDraft = null;
+        finishComponent();
       }
     );
     const skipBtn = document.createElement("button");
@@ -791,22 +799,18 @@ function render() {
     let compHtml = state.components.map((c, i) => {
       const opsHtml = c.ops.map((o, opIdx) => {
         const extraFieldHtml = o.mode === "lm"
-          ? `<div class="compact-field"><label>Длина, м</label><input type="number" step="0.01" value="${o.length_m || 0}" onchange="updateOperationField(${i},${opIdx},'length_m',this.value)"></div>`
+          ? `<input type="number" step="0.01" class="inline-num" title="Длина, м" placeholder="Длина, м" value="${o.length_m || 0}" onchange="updateOperationField(${i},${opIdx},'length_m',this.value)">`
           : (o.mode === "grommet"
-            ? `<div class="compact-field"><label>Кол-во</label><input type="number" value="${o.grommet_count || 0}" onchange="updateOperationField(${i},${opIdx},'grommet_count',this.value)"></div>`
+            ? `<input type="number" class="inline-num" title="Кол-во" placeholder="Кол-во" value="${o.grommet_count || 0}" onchange="updateOperationField(${i},${opIdx},'grommet_count',this.value)">`
             : "");
         const detail = calcDetailText(o.mode, o.rate, areaFor(c), o.length_m, c.height, c.width, o.grommet_count, o.spacing_cm, o.min_cost, o.sum);
-        return `<div class="op-row" style="margin-left:14px; border-left:2px solid var(--tg-theme-hint-color,#cccccc); padding-left:10px; flex-direction:column; align-items:stretch;">
-          <div style="display:flex; justify-content:space-between; align-items:center;">
-            <div class="name-line"><span class="name">${o.name}</span><span class="sum">${o.sum.toFixed(0)} руб.</span></div>
-            <button class="btn btn-sm" onclick="deleteOperation(${i}, ${opIdx})" style="background:#e5484d; color:#fff;">✕</button>
-          </div>
-          <div class="detail">${detail}${o.setup_cost ? ` + приладка ${o.setup_cost} руб.` : ""}</div>
-          <div class="compact-row">
-            <div class="compact-field"><label>Тариф</label><input type="number" step="0.01" value="${o.rate}" onchange="updateOperationField(${i},${opIdx},'rate',this.value)"></div>
-            ${extraFieldHtml}
-            <div class="compact-field"><label>Приладка</label><input type="number" step="0.01" value="${o.setup_cost || 0}" onchange="updateOperationField(${i},${opIdx},'setup_cost',this.value)"></div>
-          </div>
+        return `<div class="op-row" style="margin-left:14px; border-left:2px solid var(--tg-theme-hint-color,#cccccc); padding-left:10px; display:flex; align-items:center; gap:6px; flex-wrap:wrap;" title="${detail}">
+          <div class="name" style="flex:1; min-width:80px;">${o.name}</div>
+          <input type="number" step="0.01" class="inline-num" title="Тариф" placeholder="Тариф" value="${o.rate}" onchange="updateOperationField(${i},${opIdx},'rate',this.value)">
+          ${extraFieldHtml}
+          <input type="number" step="0.01" class="inline-num" title="Приладка" placeholder="Приладка" value="${o.setup_cost || 0}" onchange="updateOperationField(${i},${opIdx},'setup_cost',this.value)">
+          <div class="sum" style="min-width:60px; text-align:right;">${o.sum.toFixed(0)} руб.</div>
+          <button class="btn btn-sm" onclick="deleteOperation(${i}, ${opIdx})" style="background:#e5484d; color:#fff;">✕</button>
         </div>`;
       }).join("");
 
