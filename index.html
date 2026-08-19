@@ -486,7 +486,7 @@ function render() {
       if (state.draft.material.mode === "lm") {
         goToStep("material_length");
       } else {
-        proceedAfterMaterialSetup();
+        finishComponent();
       }
     };
     return;
@@ -505,7 +505,7 @@ function render() {
     `;
     document.getElementById("next").onclick = () => {
       state.draft.material_length_m = parseFloat(document.getElementById("mat_len").value) || 0;
-      proceedAfterMaterialSetup();
+      finishComponent();
     };
     return;
   }
