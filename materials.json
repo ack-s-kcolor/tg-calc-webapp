@@ -62,14 +62,14 @@
   {
     "name": "АПЭТ 0,5мм",
     "mode": "sqm",
-    "rate": 372.29,
-    "supplier": "",
+    "rate": 425.37,
+    "supplier": "Мальцева",
     "link": "",
-    "width_mm": "",
-    "height_mm": "",
+    "width_mm": "1250",
+    "height_mm": "2050",
     "length_m": "",
-    "purchase_total": "",
-    "markup_percent": 80
+    "purchase_total": "545",
+    "markup_percent": "100"
   },
   {
     "name": "акрил 3мм молочный",
@@ -345,6 +345,30 @@
     "height_mm": "",
     "length_m": "",
     "purchase_total": "380",
+    "markup_percent": "100"
+  },
+  {
+    "name": "Джокер труба  25мм 3м 0,7мм хром",
+    "mode": "lm",
+    "rate": 192,
+    "supplier": "Глобус",
+    "link": "",
+    "width_mm": "",
+    "height_mm": "",
+    "length_m": "3",
+    "purchase_total": "288",
+    "markup_percent": "100"
+  },
+  {
+    "name": "АПЭТ 0,3мм",
+    "mode": "sqm",
+    "rate": 280.98,
+    "supplier": "Мальцева",
+    "link": "",
+    "width_mm": "1250",
+    "height_mm": "2050",
+    "length_m": "",
+    "purchase_total": "360",
     "markup_percent": "100"
   }
 ]

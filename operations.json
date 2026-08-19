@@ -182,5 +182,13 @@
     "cost": "800",
     "markup_percent": 0,
     "min_cost": 0
+  },
+  {
+    "name": "магнит бейджи наклейка",
+    "mode": "pc",
+    "rate": 80,
+    "cost": "40",
+    "markup_percent": "100",
+    "min_cost": 0
   }
 ]
