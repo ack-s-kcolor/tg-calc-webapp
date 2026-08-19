@@ -461,7 +461,11 @@ function render() {
       "Введите название материала...",
       (m) => {
         state.draft.material = { name: m.name, mode: m.mode, rate: m.rate };
-        goToStep("dimensions");
+        state.draft.height = 0;
+        state.draft.width = 0;
+        state.draft.qty = 1;
+        state.draft.material_length_m = 0;
+        finishComponent();
       }
     );
     return;
@@ -612,7 +616,10 @@ function render() {
         } else if (o.mode === "grommet") {
           goToStep("operation_grommet");
         } else {
-          goToStep("operation_setup");
+          state.opDraft.sum = opSum(state.opDraft);
+          state.draft.ops.push(state.opDraft);
+          state.opDraft = null;
+          finishComponent();
         }
       }
     );
@@ -639,7 +646,10 @@ function render() {
     `;
     document.getElementById("next").onclick = () => {
       state.opDraft.length_m = parseFloat(document.getElementById("op_len").value) || 0;
-      goToStep("operation_setup");
+      state.opDraft.sum = opSum(state.opDraft);
+      state.draft.ops.push(state.opDraft);
+      state.opDraft = null;
+      finishComponent();
     };
     return;
   }
@@ -670,7 +680,10 @@ function render() {
     };
     document.getElementById("next").onclick = () => {
       state.opDraft.grommet_count = parseInt(document.getElementById("grommet_count").value) || 0;
-      goToStep("operation_setup");
+      state.opDraft.sum = opSum(state.opDraft);
+      state.draft.ops.push(state.opDraft);
+      state.opDraft = null;
+      finishComponent();
     };
     return;
   }
@@ -784,15 +797,26 @@ function render() {
         </div>`;
       }).join("");
 
+      const lenFieldHtml = c.material.mode === "lm" ? `
+        <div><label style="font-size:11px;">Длина, м</label><input type="number" step="0.01" id="compLen${i}" value="${c.material_length_m || ""}" placeholder="0" onchange="updateComponentDimensions(${i})"></div>
+      ` : "";
+
       const detailsHtml = isOpen ? `
         <div class="summary-line" style="background:transparent; padding-top:2px; padding-bottom:0;">
           <div class="name">Материал: ${c.material.name}</div>
-          <div class="sum">${c.materialSum.toFixed(0)} руб.</div>
-          <div class="detail">${calcDetailText(c.material.mode, c.material.rate, areaFor(c), c.material_length_m, c.height, c.width)}</div>
+          <div class="sum" id="compMatSum${i}">${c.materialSum.toFixed(0)} руб.</div>
+          <div class="detail" id="compMatDetail${i}">${calcDetailText(c.material.mode, c.material.rate, areaFor(c), c.material_length_m, c.height, c.width)}</div>
+        </div>
+        <div class="row" style="margin:6px 0;">
+          <div><label style="font-size:11px;">Высота, мм</label><input type="number" id="compHeight${i}" value="${c.height || ""}" placeholder="0" onchange="updateComponentDimensions(${i})"></div>
+          <div><label style="font-size:11px;">Ширина, мм</label><input type="number" id="compWidth${i}" value="${c.width || ""}" placeholder="0" onchange="updateComponentDimensions(${i})"></div>
+        </div>
+        <div class="row" style="margin:6px 0;">
+          <div><label style="font-size:11px;">Количество, шт</label><input type="number" id="compQty${i}" value="${c.qty || 1}" min="1" onchange="updateComponentDimensions(${i})"></div>
+          ${lenFieldHtml}
         </div>
         ${opsHtml}
         <div class="comp-actions">
-          <button class="btn btn-sm" onclick="editComponent(${i})">Габариты</button>
           <button class="btn btn-sm" onclick="editMaterial(${i})">Материал</button>
           <button class="btn btn-sm" onclick="deleteComponent(${i})" style="background:#e5484d; color:#fff;">Удалить</button>
         </div>
@@ -824,14 +848,12 @@ function render() {
       total: grandTotal()
     };
 
-    const actionHtml = state.components.length === 0
-      ? ""
-      : (tg
-        ? `<button class="btn btn-primary" id="send">Отправить расчёт в чат</button>`
-        : `<button class="btn btn-primary" id="send">Скачать JSON расчёта</button>
-           <button class="btn secondary" id="sendXlsx" style="margin-top:6px;">Скачать Excel</button>
-           <div class="hint" style="margin-top:8px;">Страница открыта не в Telegram — расчёт показан ниже и его можно скачать файлом.</div>
-           <pre style="margin-top:14px; background:var(--tg-theme-secondary-bg-color,#f2f2f2); border-radius:10px; padding:12px; font-size:12px; overflow-x:auto; white-space:pre-wrap; word-break:break-word;">${JSON.stringify(payload, null, 2)}</pre>`);
+    const actionHtml = tg
+      ? `<button class="btn btn-primary" id="send">Отправить расчёт в чат</button>`
+      : `<button class="btn btn-primary" id="send">Скачать JSON расчёта</button>
+         <button class="btn secondary" id="sendXlsx" style="margin-top:6px;">Скачать Excel</button>
+         <div class="hint" style="margin-top:8px;">Страница открыта не в Telegram — расчёт показан ниже и его можно скачать файлом.</div>
+         <pre style="margin-top:14px; background:var(--tg-theme-secondary-bg-color,#f2f2f2); border-radius:10px; padding:12px; font-size:12px; overflow-x:auto; white-space:pre-wrap; word-break:break-word;">${JSON.stringify(payload, null, 2)}</pre>`;
 
     const emptyHint = state.components.length === 0
       ? `<div class="hint" style="margin-top:12px;">Материалов пока нет. Нажмите правой кнопкой мыши в любом месте экрана, чтобы добавить первый материал.</div>`
@@ -842,28 +864,26 @@ function render() {
       <div class="hint">Тираж: ${state.product.qty} шт</div>
       ${compHtml}
       ${emptyHint}
-      ${state.components.length > 0 ? `<div class="total"><span>Итого</span><span>${grandTotal().toFixed(0)} руб.</span></div>` : ""}
+      <div class="total"><span>Итого</span><span>${grandTotal().toFixed(0)} руб.</span></div>
       ${actionHtml}
     `;
-    if (state.components.length > 0) {
-      document.getElementById("send").onclick = () => {
-        if (tg) {
-          tg.sendData(JSON.stringify(payload));
-          tg.close();
-        } else {
-          const json = JSON.stringify(payload, null, 2);
-          const blob = new Blob([json], { type: "application/json" });
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement("a");
-          a.href = url;
-          a.download = "order.json";
-          a.click();
-          URL.revokeObjectURL(url);
-        }
-      };
-      if (!tg) {
-        document.getElementById("sendXlsx").onclick = () => downloadXlsx(payload);
+    document.getElementById("send").onclick = () => {
+      if (tg) {
+        tg.sendData(JSON.stringify(payload));
+        tg.close();
+      } else {
+        const json = JSON.stringify(payload, null, 2);
+        const blob = new Blob([json], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "order.json";
+        a.click();
+        URL.revokeObjectURL(url);
       }
+    };
+    if (!tg) {
+      document.getElementById("sendXlsx").onclick = () => downloadXlsx(payload);
     }
     return;
   }
@@ -947,6 +967,29 @@ function editComponent(index) {
   };
   stepHistory = [];
   goToStep("dimensions");
+}
+
+function updateComponentDimensions(i) {
+  const c = state.components[i];
+  const heightInput = document.getElementById("compHeight" + i);
+  const widthInput = document.getElementById("compWidth" + i);
+  const qtyInput = document.getElementById("compQty" + i);
+  const lenInput = document.getElementById("compLen" + i);
+  if (heightInput) c.height = parseFloat(heightInput.value) || 0;
+  if (widthInput) c.width = parseFloat(widthInput.value) || 0;
+  if (qtyInput) c.qty = parseInt(qtyInput.value) || 1;
+  if (lenInput) c.material_length_m = parseFloat(lenInput.value) || 0;
+
+  if (c.material.mode === "sqm") {
+    c.materialSum = areaFor(c) * c.qty * c.material.rate;
+  } else if (c.material.mode === "lm") {
+    c.materialSum = (c.material_length_m || 0) * c.qty * c.material.rate;
+  } else {
+    c.materialSum = c.qty * c.material.rate;
+  }
+  c.ops.forEach(op => { op.sum = opSumFor(c, op); });
+
+  render();
 }
 
 function editMaterial(index) {
