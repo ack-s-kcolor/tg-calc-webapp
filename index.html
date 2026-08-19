@@ -104,6 +104,18 @@
   label { font-size: 13px; display: block; margin-bottom: 4px; }
   .row { display: flex; gap: 10px; }
   .row > div { flex: 1; }
+  .compact-row { display: flex; gap: 8px; flex-wrap: wrap; margin: 6px 0; }
+  .compact-field { flex: 1; min-width: 70px; max-width: 110px; }
+  .compact-field label { font-size: 10px; margin-bottom: 2px; color: var(--tg-theme-hint-color, #999999); }
+  .compact-field input {
+    width: 100%;
+    padding: 6px 8px;
+    font-size: 13px;
+    border-radius: 8px;
+    border: 1px solid var(--tg-theme-hint-color, #cccccc);
+    background: var(--tg-theme-secondary-bg-color, #f2f2f2);
+    color: var(--tg-theme-text-color, #000000);
+  }
   .item, .btn {
     padding: 12px 14px;
     border-radius: 10px;
@@ -776,28 +788,28 @@ function render() {
   if (state.step === "final") {
     let compHtml = state.components.map((c, i) => {
       const opsHtml = c.ops.map((o, opIdx) => {
-        const editBtn = o.mode === "lm"
-          ? `<button class="btn btn-sm" onclick="editOperationLength(${i}, ${opIdx})">✎</button>`
-          : (o.mode === "sqm"
-            ? `<button class="btn btn-sm" onclick="editOperationRate(${i}, ${opIdx})">✎</button>`
-            : (o.mode === "grommet"
-              ? `<button class="btn btn-sm" onclick="editOperationGrommet(${i}, ${opIdx})">✎</button>`
-              : ""));
+        const extraFieldHtml = o.mode === "lm"
+          ? `<div class="compact-field"><label>Длина, м</label><input type="number" step="0.01" value="${o.length_m || 0}" onchange="updateOperationField(${i},${opIdx},'length_m',this.value)"></div>`
+          : (o.mode === "grommet"
+            ? `<div class="compact-field"><label>Кол-во</label><input type="number" value="${o.grommet_count || 0}" onchange="updateOperationField(${i},${opIdx},'grommet_count',this.value)"></div>`
+            : "");
         const detail = calcDetailText(o.mode, o.rate, areaFor(c), o.length_m, c.height, c.width, o.grommet_count, o.spacing_cm, o.min_cost, o.sum);
-        return `<div class="op-row" style="margin-left:14px; border-left:2px solid var(--tg-theme-hint-color,#cccccc); padding-left:10px;">
-          <div class="op-info">
+        return `<div class="op-row" style="margin-left:14px; border-left:2px solid var(--tg-theme-hint-color,#cccccc); padding-left:10px; flex-direction:column; align-items:stretch;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
             <div class="name-line"><span class="name">${o.name}</span><span class="sum">${o.sum.toFixed(0)} руб.</span></div>
-            <div class="detail">${detail}${o.setup_cost ? ` + приладка ${o.setup_cost} руб.` : ""}</div>
-          </div>
-          <div style="display:flex; gap:4px;">
-            ${editBtn}
             <button class="btn btn-sm" onclick="deleteOperation(${i}, ${opIdx})" style="background:#e5484d; color:#fff;">✕</button>
+          </div>
+          <div class="detail">${detail}${o.setup_cost ? ` + приладка ${o.setup_cost} руб.` : ""}</div>
+          <div class="compact-row">
+            <div class="compact-field"><label>Тариф</label><input type="number" step="0.01" value="${o.rate}" onchange="updateOperationField(${i},${opIdx},'rate',this.value)"></div>
+            ${extraFieldHtml}
+            <div class="compact-field"><label>Приладка</label><input type="number" step="0.01" value="${o.setup_cost || 0}" onchange="updateOperationField(${i},${opIdx},'setup_cost',this.value)"></div>
           </div>
         </div>`;
       }).join("");
 
       const lenFieldHtml = c.material.mode === "lm" ? `
-        <div><label style="font-size:11px;">Длина, м</label><input type="number" step="0.01" id="compLen${i}" value="${c.material_length_m || ""}" placeholder="0" onchange="updateComponentDimensions(${i})"></div>
+        <div class="compact-field"><label>Длина, м</label><input type="number" step="0.01" id="compLen${i}" value="${c.material_length_m || ""}" placeholder="0" onchange="updateComponentDimensions(${i})"></div>
       ` : "";
 
       return `
@@ -807,12 +819,10 @@ function render() {
             <div class="sum">${componentTotal(c).toFixed(0)} руб.</div>
           </div>
           <div class="detail">${calcDetailText(c.material.mode, c.material.rate, areaFor(c), c.material_length_m, c.height, c.width)}</div>
-          <div class="row" style="margin:8px 0 0;">
-            <div><label style="font-size:11px;">Высота, мм</label><input type="number" id="compHeight${i}" value="${c.height || ""}" placeholder="0" onchange="updateComponentDimensions(${i})"></div>
-            <div><label style="font-size:11px;">Ширина, мм</label><input type="number" id="compWidth${i}" value="${c.width || ""}" placeholder="0" onchange="updateComponentDimensions(${i})"></div>
-          </div>
-          <div class="row" style="margin:6px 0;">
-            <div><label style="font-size:11px;">Количество, шт</label><input type="number" id="compQty${i}" value="${c.qty || 1}" min="1" onchange="updateComponentDimensions(${i})"></div>
+          <div class="compact-row">
+            <div class="compact-field"><label>Высота, мм</label><input type="number" id="compHeight${i}" value="${c.height || ""}" placeholder="0" onchange="updateComponentDimensions(${i})"></div>
+            <div class="compact-field"><label>Ширина, мм</label><input type="number" id="compWidth${i}" value="${c.width || ""}" placeholder="0" onchange="updateComponentDimensions(${i})"></div>
+            <div class="compact-field"><label>Кол-во, шт</label><input type="number" id="compQty${i}" value="${c.qty || 1}" min="1" onchange="updateComponentDimensions(${i})"></div>
             ${lenFieldHtml}
           </div>
           ${opsHtml}
@@ -958,6 +968,18 @@ function editComponent(index) {
   };
   stepHistory = [];
   goToStep("dimensions");
+}
+
+function updateOperationField(compIndex, opIndex, field, value) {
+  const c = state.components[compIndex];
+  const op = c.ops[opIndex];
+  if (field === "rate" || field === "setup_cost" || field === "length_m") {
+    op[field] = parseFloat(value) || 0;
+  } else if (field === "grommet_count") {
+    op[field] = parseInt(value) || 0;
+  }
+  op.sum = opSumFor(c, op);
+  render();
 }
 
 function updateComponentDimensions(i) {
