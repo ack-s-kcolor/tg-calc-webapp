@@ -910,7 +910,11 @@ function render() {
       <button class="btn" id="addMaterialBtn" style="background:var(--tg-theme-button-color,#2481cc); color:#fff; margin-bottom:12px;">+ Добавить материал</button>
       ${compHtml}
       ${emptyHint}
-      <div class="total"><span>Итого</span><span>${grandTotal().toFixed(0)} руб.</span></div>
+      <div class="summary-line" style="display:flex; justify-content:flex-start; gap:6px; background:transparent; padding:6px 0;">
+        <span class="detail" style="font-size:13px;">Итого за изделие (1 шт):</span>
+        <span class="detail" style="font-size:13px; font-weight:600;">${(grandTotal() / (state.product.qty || 1)).toFixed(0)} руб.</span>
+      </div>
+      <div class="total" style="justify-content:flex-start; gap:8px;"><span>Общая сумма:</span><span>${grandTotal().toFixed(0)} руб.</span></div>
       ${actionHtml}
     `;
     document.getElementById("addMaterialBtn").onclick = () => startComponent();
