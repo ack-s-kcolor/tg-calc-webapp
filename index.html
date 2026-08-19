@@ -54,6 +54,32 @@
   }
   #summaryBar b { color: var(--tg-theme-text-color, #000000); }
   #summaryBar:empty { display: none; margin: 0; padding: 0; }
+  .context-menu {
+    display: none;
+    position: absolute;
+    background: var(--tg-theme-bg-color, #ffffff);
+    border-radius: 10px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+    padding: 6px;
+    z-index: 200;
+    min-width: 200px;
+  }
+  .context-menu button {
+    display: block;
+    width: 100%;
+    text-align: left;
+    background: none;
+    border: none;
+    padding: 10px 12px;
+    font-size: 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    margin: 0;
+    color: var(--tg-theme-text-color, #000000);
+  }
+  .context-menu button:active {
+    background: var(--tg-theme-secondary-bg-color, #f2f2f2);
+  }
   * { box-sizing: border-box; }
   body {
     margin: 0;
@@ -130,6 +156,7 @@
   <div id="summaryBar"></div>
 </div>
 <div id="app"></div>
+<div id="contextMenu" class="context-menu"></div>
 
 <script>
 const tgRaw = (window.Telegram && window.Telegram.WebApp) ? window.Telegram.WebApp : null;
@@ -772,11 +799,13 @@ function render() {
       ` : "";
 
       return `
-        <div class="summary-line" style="cursor:pointer;" onclick="toggleComponentExpand(${i})">
-          <div class="name">${isOpen ? "▼" : "▶"} ${i + 1}. ${c.material.name}</div>
-          <div class="sum">${componentTotal(c).toFixed(0)} руб.</div>
+        <div data-component-index="${i}">
+          <div class="summary-line" style="cursor:pointer;" onclick="toggleComponentExpand(${i})">
+            <div class="name">${isOpen ? "▼" : "▶"} ${i + 1}. ${c.material.name}</div>
+            <div class="sum">${componentTotal(c).toFixed(0)} руб.</div>
+          </div>
+          ${detailsHtml}
         </div>
-        ${detailsHtml}
       `;
     }).join("<div style='height:10px;'></div>");
 
@@ -925,6 +954,20 @@ function editMaterial(index) {
   goToStep("material_search");
 }
 
+function addOperationToComponent(index) {
+  const c = state.components.splice(index, 1)[0];
+  state.draft = {
+    material: c.material,
+    height: c.height,
+    width: c.width,
+    qty: c.qty,
+    ops: c.ops,
+    material_length_m: c.material_length_m || 0
+  };
+  stepHistory = [];
+  goToStep("operation_search");
+}
+
 function startComponent() {
   state.draft = { material: null, height: 0, width: 0, qty: 1, ops: [] };
   goToStep("material_search");
@@ -968,6 +1011,50 @@ function renderSearchScreen(catalog, title, placeholder, onSelect) {
   input.addEventListener("input", (e) => renderList(e.target.value));
   renderList("");
 }
+
+// ---------- Контекстное меню по правому клику (только на итоговом экране) ----------
+
+function hideContextMenu() {
+  document.getElementById("contextMenu").style.display = "none";
+}
+
+function showContextMenu(x, y, target) {
+  if (state.step !== "final") return; // одно окно — только на итоговом экране заказа
+
+  const menu = document.getElementById("contextMenu");
+  const items = [];
+
+  const compEl = target.closest("[data-component-index]");
+  if (compEl) {
+    const idx = parseInt(compEl.getAttribute("data-component-index"));
+    items.push(["+ Добавить операцию к этому материалу", () => addOperationToComponent(idx)]);
+  }
+  items.push(["+ Добавить материал", () => startComponent()]);
+
+  menu.innerHTML = "";
+  items.forEach(([label, action]) => {
+    const btn = document.createElement("button");
+    btn.textContent = label;
+    btn.onclick = () => { action(); hideContextMenu(); };
+    menu.appendChild(btn);
+  });
+
+  const menuWidth = 240;
+  const menuHeight = items.length * 40 + 12;
+  const maxX = window.innerWidth - menuWidth - 10;
+  const maxY = window.innerHeight - menuHeight - 10;
+  menu.style.left = Math.min(x, maxX) + "px";
+  menu.style.top = Math.min(y, maxY) + "px";
+  menu.style.display = "block";
+}
+
+document.addEventListener("contextmenu", (e) => {
+  if (state.step !== "final") return; // вне итогового экрана — обычное меню браузера
+  e.preventDefault();
+  showContextMenu(e.pageX, e.pageY, e.target);
+});
+document.addEventListener("click", () => hideContextMenu());
+document.addEventListener("scroll", () => hideContextMenu());
 
 function fetchJsonSafe(url, fallback) {
   return fetch(url, { cache: "no-store" })
