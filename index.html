@@ -233,6 +233,23 @@ function materialHasNoOperations(materialName) {
   return !!(entry && entry.no_operations);
 }
 
+function checkOperationsCompatibility(materialName) {
+  if (!state.draft.ops || state.draft.ops.length === 0) return;
+  const allowedNames = materialHasNoOperations(materialName)
+    ? []
+    : getAllowedOperations(materialName).map(o => o.name);
+  const incompatible = state.draft.ops.filter(op => !allowedNames.includes(op.name));
+  if (incompatible.length > 0) {
+    const names = incompatible.map(op => op.name).join(", ");
+    const msg = `Внимание: операции «${names}» обычно не применяются к материалу «${materialName}». Они остались в компоненте — проверьте и уберите вручную, если не нужны.`;
+    if (tg && tg.showAlert) {
+      tg.showAlert(msg);
+    } else {
+      alert(msg);
+    }
+  }
+}
+
 function proceedAfterMaterialSetup() {
   if (materialHasNoOperations(state.draft.material.name)) {
     finishComponent();
@@ -504,10 +521,7 @@ function render() {
       "Введите название материала...",
       (m) => {
         state.draft.material = { name: m.name, mode: m.mode, rate: m.rate };
-        state.draft.height = 0;
-        state.draft.width = 0;
-        state.draft.qty = 1;
-        state.draft.material_length_m = 0;
+        checkOperationsCompatibility(m.name);
         finishComponent();
       }
     );
@@ -1062,7 +1076,7 @@ function addOperationToComponent(index) {
 }
 
 function startComponent() {
-  state.draft = { material: null, height: 0, width: 0, qty: 1, ops: [] };
+  state.draft = { material: null, height: 0, width: 0, qty: 1, material_length_m: 0, ops: [] };
   goToStep("material_search");
 }
 
