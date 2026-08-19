@@ -38,6 +38,25 @@
     margin-bottom: 4px;
   }
   .comp-actions .btn-sm { flex: 1; text-align: center; }
+  .icon-btn {
+    width: 26px;
+    height: 26px;
+    padding: 0;
+    border-radius: 50%;
+    border: none;
+    background: var(--tg-theme-secondary-bg-color, #e5e5e5);
+    color: var(--tg-theme-text-color, #000000);
+    font-size: 15px;
+    line-height: 1;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .icon-btn-danger {
+    background: #e5484d;
+    color: #fff;
+  }
   #summaryBar {
     font-size: 12px;
     color: var(--tg-theme-hint-color, #999999);
@@ -820,9 +839,14 @@ function render() {
 
       return `
         <div data-component-index="${i}" class="summary-line" style="padding-bottom:10px;">
-          <div class="name-line" style="display:flex; justify-content:space-between;">
+          <div class="name-line" style="display:flex; justify-content:space-between; align-items:center;">
             <div class="name">${i + 1}. ${c.material.name}</div>
-            <div class="sum">${componentTotal(c).toFixed(0)} руб.</div>
+            <div style="display:flex; align-items:center; gap:4px;">
+              <button class="icon-btn" title="Добавить операцию" onclick="addOperationToComponent(${i})">+</button>
+              <button class="icon-btn" title="Изменить материал" onclick="editMaterial(${i})">↻</button>
+              <button class="icon-btn icon-btn-danger" title="Удалить компонент" onclick="deleteComponent(${i})">−</button>
+              <div class="sum">${componentTotal(c).toFixed(0)} руб.</div>
+            </div>
           </div>
           <div class="detail">${calcDetailText(c.material.mode, c.material.rate, areaFor(c), c.material_length_m, c.height, c.width)}</div>
           <div class="compact-row">
@@ -832,11 +856,6 @@ function render() {
             ${lenFieldHtml}
           </div>
           ${opsHtml}
-          <div class="comp-actions">
-            <button class="btn btn-sm" onclick="addOperationToComponent(${i})" style="background:var(--tg-theme-button-color,#2481cc); color:#fff;">+ Операция</button>
-            <button class="btn btn-sm" onclick="editMaterial(${i})">Материал</button>
-            <button class="btn btn-sm" onclick="deleteComponent(${i})" style="background:#e5484d; color:#fff;">Удалить</button>
-          </div>
         </div>
       `;
     }).join("<div style='height:10px;'></div>");
