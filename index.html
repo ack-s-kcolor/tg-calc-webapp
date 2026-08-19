@@ -862,14 +862,12 @@ function render() {
             </div>
             <div class="sum">${componentTotal(c).toFixed(0)} руб.</div>
           </div>
-          <div style="display:flex; justify-content:space-between; align-items:baseline;">
-            <div class="detail">${calcDetailText(c.material.mode, c.material.rate, areaFor(c), c.material_length_m, c.height, c.width)}</div>
-            <div style="font-weight:600; font-size:13px;">${c.materialSum.toFixed(0)} руб.</div>
-          </div>
+          <div class="detail">${calcDetailText(c.material.mode, c.material.rate, areaFor(c), c.material_length_m, c.height, c.width)}</div>
           <div class="compact-row">
             <div class="compact-field"><label>Высота, мм</label><input type="number" id="compHeight${i}" value="${c.height || ""}" placeholder="0" onchange="updateComponentDimensions(${i})"></div>
             <div class="compact-field"><label>Ширина, мм</label><input type="number" id="compWidth${i}" value="${c.width || ""}" placeholder="0" onchange="updateComponentDimensions(${i})"></div>
             <div class="compact-field"><label>Тариф материала</label><input type="number" step="0.01" id="compRate${i}" value="${c.material.rate}" onchange="updateComponentDimensions(${i})"></div>
+            <div class="compact-field"><label>Сумма</label><div style="font-weight:600; font-size:13px; padding:6px 0;" id="compMatSum${i}">${c.materialSum.toFixed(0)} руб.</div></div>
             ${lenFieldHtml}
           </div>
           ${opsHtml}
