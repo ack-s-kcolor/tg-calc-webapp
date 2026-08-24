@@ -382,5 +382,17 @@
     "length_m": "",
     "purchase_total": "9597.5",
     "markup_percent": "120"
+  },
+  {
+    "name": "Пленка галографическая",
+    "mode": "sqm",
+    "rate": 581.31,
+    "supplier": "Zenon",
+    "link": "https://zenonline.ru/cat/00000021215",
+    "width_mm": "1220",
+    "height_mm": "50000",
+    "length_m": "",
+    "purchase_total": "19700",
+    "markup_percent": 80
   }
 ]
