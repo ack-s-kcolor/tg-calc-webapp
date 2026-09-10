@@ -394,5 +394,17 @@
     "length_m": "",
     "purchase_total": "19700",
     "markup_percent": 80
+  },
+  {
+    "name": "Плёнка мономерная GRAFIX цветная",
+    "mode": "sqm",
+    "rate": 339.02,
+    "supplier": "Zenon",
+    "link": "https://zenonline.ru/cat/00-00005458",
+    "width_mm": "1220",
+    "height_mm": "1000",
+    "length_m": "",
+    "purchase_total": "188",
+    "markup_percent": "120"
   }
 ]
