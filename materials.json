@@ -48,15 +48,15 @@
     "markup_percent": 80
   },
   {
-    "name": "композит тонкостенный",
+    "name": "композит GROSSBOND 3 мм, стенка 0.21 мм",
     "mode": "sqm",
-    "rate": 3709.12,
-    "supplier": "",
-    "link": "",
-    "width_mm": "",
-    "height_mm": "",
+    "rate": 2535,
+    "supplier": "Zenon",
+    "link": "https://zenonline.ru/cat/00000086479",
+    "width_mm": "1500",
+    "height_mm": "4000",
     "length_m": "",
-    "purchase_total": "",
+    "purchase_total": "8450",
     "markup_percent": 80
   },
   {
