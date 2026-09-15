@@ -406,5 +406,29 @@
     "length_m": "",
     "purchase_total": "188",
     "markup_percent": "120"
+  },
+  {
+    "name": "карман апэт 0,5мм А3",
+    "mode": "pc",
+    "rate": 350,
+    "supplier": "",
+    "link": "",
+    "width_mm": "",
+    "height_mm": "",
+    "length_m": "",
+    "purchase_total": "350",
+    "markup_percent": "0"
+  },
+  {
+    "name": "карман апэт 0,5мм А4",
+    "mode": "pc",
+    "rate": 200,
+    "supplier": "",
+    "link": "",
+    "width_mm": "",
+    "height_mm": "",
+    "length_m": "",
+    "purchase_total": "200",
+    "markup_percent": "0"
   }
 ]
