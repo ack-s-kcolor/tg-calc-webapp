@@ -668,7 +668,7 @@ function render() {
       "Операция",
       "Введите название операции...",
       (o) => {
-        state.opDraft = { name: o.name, mode: o.mode, rate: o.rate, length_m: 0, setup_cost: 0, grommet_count: 0, spacing_cm: 30, min_cost: o.min_cost || 0 };
+        state.opDraft = { name: o.name, mode: o.mode, rate: o.rate, length_m: 0, setup_cost: o.setup_cost || 0, grommet_count: 0, spacing_cm: 30, min_cost: o.min_cost || 0 };
         if (o.mode === "lm") {
           state.opDraft.length_m = perimeter();
         } else if (o.mode === "grommet") {

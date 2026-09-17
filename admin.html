@@ -49,6 +49,31 @@
   .col-resizer:hover, .col-resizer.active {
     background: #2481cc;
   }
+  .context-menu {
+    display: none;
+    position: absolute;
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+    padding: 6px;
+    z-index: 200;
+    min-width: 200px;
+  }
+  .context-menu button {
+    display: block;
+    width: 100%;
+    text-align: left;
+    background: none;
+    border: none;
+    padding: 8px 10px;
+    font-size: 13px;
+    border-radius: 6px;
+    cursor: pointer;
+    margin: 0;
+  }
+  .context-menu button:hover {
+    background: #f0f0f0;
+  }
   .tab {
     padding: 8px 16px;
     border-radius: 8px;
@@ -103,6 +128,8 @@
 </style>
 </head>
 <body>
+
+<div id="contextMenu" class="context-menu"></div>
 
 <h1>Редактор справочников</h1>
 <div class="hint">Работает прямо в браузере, ничего никуда не отправляет. Загрузите файл — отредактируйте — скачайте обратно.</div>
@@ -159,12 +186,13 @@
   <table>
     <thead>
       <tr>
-        <th style="width:240px">Название операции</th>
+        <th style="width:220px">Название операции</th>
         <th style="width:100px">Режим</th>
-        <th style="width:110px">Себестоимость</th>
-        <th style="width:90px">Наценка, %</th>
-        <th style="width:110px">Тариф (продажа)</th>
-        <th style="width:140px">Мин. стоимость операции</th>
+        <th style="width:100px">Себестоимость</th>
+        <th style="width:80px">Наценка, %</th>
+        <th style="width:100px">Тариф (продажа)</th>
+        <th style="width:120px">Мин. стоимость операции</th>
+        <th style="width:110px">Приладка (по умолч.)</th>
         <th style="width:90px"></th>
       </tr>
     </thead>
@@ -528,6 +556,15 @@ function renderOp() {
     minCostInput.oninput = (e) => { opData[i].min_cost = e.target.value; };
     minCostTd.appendChild(minCostInput);
 
+    const setupCostTd = document.createElement("td");
+    const setupCostInput = document.createElement("input");
+    setupCostInput.type = "number";
+    setupCostInput.step = "0.01";
+    setupCostInput.value = item.setup_cost ?? 0;
+    setupCostInput.title = "Подставится по умолчанию при выборе операции в калькуляторе, можно поправить там же";
+    setupCostInput.oninput = (e) => { opData[i].setup_cost = e.target.value; };
+    setupCostTd.appendChild(setupCostInput);
+
     const delTd = document.createElement("td");
     const delBtn = document.createElement("button");
     delBtn.className = "danger";
@@ -541,13 +578,14 @@ function renderOp() {
     tr.appendChild(markupTd);
     tr.appendChild(rateTd);
     tr.appendChild(minCostTd);
+    tr.appendChild(setupCostTd);
     tr.appendChild(delTd);
     tbody.appendChild(tr);
   });
 }
 
 document.getElementById("addRowOp").onclick = () => {
-  opData.push({ name: "", mode: "pc", cost: 0, markup_percent: 0, min_cost: 0 });
+  opData.push({ name: "", mode: "pc", cost: 0, markup_percent: 0, min_cost: 0, setup_cost: 0 });
   renderOp();
 };
 
@@ -574,6 +612,7 @@ document.getElementById("fileInputOp").addEventListener("change", (e) => {
         cost: p.cost !== undefined ? p.cost : "",
         markup_percent: p.markup_percent !== undefined ? p.markup_percent : 0,
         min_cost: p.min_cost !== undefined ? p.min_cost : 0,
+        setup_cost: p.setup_cost !== undefined ? p.setup_cost : 0,
         _existing_rate: p.rate
       }));
       renderOp();
@@ -597,7 +636,8 @@ document.getElementById("downloadOp").onclick = () => {
         rate: Math.round(rate * 100) / 100,
         cost: item.cost || 0,
         markup_percent: item.markup_percent !== undefined ? item.markup_percent : 0,
-        min_cost: item.min_cost || 0
+        min_cost: item.min_cost || 0,
+        setup_cost: item.setup_cost || 0
       };
     });
   const json = JSON.stringify(cleaned, null, 2);
@@ -927,6 +967,63 @@ document.getElementById("downloadTpl").onclick = () => {
 };
 
 renderTpl();
+
+// ---------- Контекстное меню по правому клику ----------
+
+function getActiveTab() {
+  if (document.getElementById("section-mat").classList.contains("active")) return "mat";
+  if (document.getElementById("section-op").classList.contains("active")) return "op";
+  if (document.getElementById("section-link").classList.contains("active")) return "link";
+  if (document.getElementById("section-tpl").classList.contains("active")) return "tpl";
+  return null;
+}
+
+function hideContextMenu() {
+  document.getElementById("contextMenu").style.display = "none";
+}
+
+function showContextMenu(x, y) {
+  const menu = document.getElementById("contextMenu");
+  const tab = getActiveTab();
+  const items = [];
+
+  if (tab === "mat") {
+    items.push(["+ Добавить материал", () => document.getElementById("addRowMat").click()]);
+  } else if (tab === "op") {
+    items.push(["+ Добавить операцию", () => document.getElementById("addRowOp").click()]);
+  } else if (tab === "tpl") {
+    items.push(["+ Добавить шаблон", () => document.getElementById("addRowTpl").click()]);
+  }
+
+  if (items.length === 0) {
+    hideContextMenu();
+    return;
+  }
+
+  menu.innerHTML = "";
+  items.forEach(([label, action]) => {
+    const btn = document.createElement("button");
+    btn.textContent = label;
+    btn.onclick = () => { action(); hideContextMenu(); };
+    menu.appendChild(btn);
+  });
+
+  // не даём меню вылезти за правый/нижний край окна
+  const menuWidth = 220;
+  const menuHeight = items.length * 36 + 12;
+  const maxX = window.innerWidth - menuWidth - 10;
+  const maxY = window.innerHeight - menuHeight - 10;
+  menu.style.left = Math.min(x, maxX) + "px";
+  menu.style.top = Math.min(y, maxY) + "px";
+  menu.style.display = "block";
+}
+
+document.addEventListener("contextmenu", (e) => {
+  e.preventDefault();
+  showContextMenu(e.pageX, e.pageY);
+});
+document.addEventListener("click", () => hideContextMenu());
+document.addEventListener("scroll", () => hideContextMenu());
 </script>
 
 </body>
