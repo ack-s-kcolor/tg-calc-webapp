@@ -42,12 +42,8 @@
     "no_operations": false
   },
   {
-    "material": "композит тонкостенный",
-    "operations": [
-      "УФ печать",
-      "фрезеровка",
-      "УФ печать с белым"
-    ],
+    "material": "композит GROSSBOND 3 мм, стенка 0.21 мм",
+    "operations": [],
     "no_operations": false
   },
   {
@@ -269,6 +265,21 @@
       "Плоттерная резка п/м",
       "выборка и накатка монтажной пленки"
     ],
+    "no_operations": false
+  },
+  {
+    "material": "Плёнка мономерная GRAFIX цветная",
+    "operations": [],
+    "no_operations": false
+  },
+  {
+    "material": "карман апэт 0,5мм А3",
+    "operations": [],
+    "no_operations": false
+  },
+  {
+    "material": "карман апэт 0,5мм А4",
+    "operations": [],
     "no_operations": false
   }
 ]
