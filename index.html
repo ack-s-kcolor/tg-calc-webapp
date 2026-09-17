@@ -305,7 +305,7 @@ function summaryHtml() {
   }
 
   if (state.draft.ops && state.draft.ops.length > 0) {
-    const opsList = state.draft.ops.map(o => `${o.name} (${(o.sum || 0).toFixed(0)} руб)`).join(", ");
+    const opsList = state.draft.ops.map(o => `${o.name} (${(Number(o.sum) || 0).toFixed(0)} руб)`).join(", ");
     parts.push(`Операции: ${opsList}`);
   }
 
@@ -442,8 +442,8 @@ function opSum(op) {
 }
 
 function componentTotal(c) {
-  let sum = c.materialSum;
-  c.ops.forEach(o => sum += o.sum);
+  let sum = Number(c.materialSum) || 0;
+  c.ops.forEach(o => { sum += Number(o.sum) || 0; });
   return sum;
 }
 
@@ -799,7 +799,7 @@ function renderInner() {
       const detail = calcDetailText(o.mode, o.rate, areaFor(c), o.length_m, c.height, c.width, o.grommet_count, o.spacing_cm, o.min_cost, o.sum);
       return `<div class="op-row">
         <div class="op-info">
-          <div class="name-line"><span class="name">${o.name}</span><span class="sum">${(o.sum || 0).toFixed(0)} руб.</span></div>
+          <div class="name-line"><span class="name">${o.name}</span><span class="sum">${(Number(o.sum) || 0).toFixed(0)} руб.</span></div>
           <div class="detail">${detail}${o.setup_cost ? ` + приладка ${o.setup_cost} руб.` : ""}</div>
         </div>
         <div style="display:flex; gap:4px;">
@@ -810,7 +810,7 @@ function renderInner() {
     }).join("");
     app.innerHTML = `
       <h1>Компонент готов</h1>
-      <div class="summary-line"><div class="name">${c.material.name}</div><div class="sum">${(c.materialSum || 0).toFixed(0)} руб.</div>
+      <div class="summary-line"><div class="name">${c.material.name}</div><div class="sum">${(Number(c.materialSum) || 0).toFixed(0)} руб.</div>
         <div class="detail">${calcDetailText(c.material.mode, c.material.rate, areaFor(c), c.material_length_m, c.height, c.width, undefined, undefined, undefined, undefined, c.material.mode === "pc" ? (c.qty_per_unit || 1) : undefined)}</div>
       </div>
       ${opsHtml}
@@ -852,7 +852,7 @@ function renderInner() {
           <input type="number" step="0.01" class="inline-num" title="Тариф" placeholder="Тариф" value="${o.rate}" onchange="updateOperationField(${i},${opIdx},'rate',this.value)">
           ${extraFieldHtml}
           <input type="number" step="0.01" class="inline-num" title="Приладка" placeholder="Приладка" value="${o.setup_cost || 0}" onchange="updateOperationField(${i},${opIdx},'setup_cost',this.value)">
-          <div class="sum" style="min-width:60px; text-align:right;">${(o.sum || 0).toFixed(0)} руб.</div>
+          <div class="sum" style="min-width:60px; text-align:right;">${(Number(o.sum) || 0).toFixed(0)} руб.</div>
           <button class="btn btn-sm" onclick="deleteOperation(${i}, ${opIdx})" style="background:#e5484d; color:#fff;">✕</button>
         </div>`;
       }).join("");
@@ -881,7 +881,7 @@ function renderInner() {
             <div class="compact-field"><label>Ширина, мм</label><input type="number" id="compWidth${i}" value="${c.width || ""}" placeholder="0" onchange="updateComponentDimensions(${i})"></div>
             ` : ""}
             <div class="compact-field"><label>Тариф материала</label><input type="number" step="0.01" id="compRate${i}" value="${c.material.rate}" onchange="updateComponentDimensions(${i})"></div>
-            <div class="compact-field"><label>Сумма</label><div style="font-weight:600; font-size:13px; padding:6px 0;" id="compMatSum${i}">${(c.materialSum || 0).toFixed(0)} руб.</div></div>
+            <div class="compact-field"><label>Сумма</label><div style="font-weight:600; font-size:13px; padding:6px 0;" id="compMatSum${i}">${(Number(c.materialSum) || 0).toFixed(0)} руб.</div></div>
             ${lenFieldHtml}
             ${qtyPerUnitFieldHtml}
           </div>
