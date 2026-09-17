@@ -3,109 +3,109 @@
     "name": "УФ печать",
     "mode": "sqm",
     "rate": 1200,
-    "cost": "1200",
+    "cost": 1200,
     "markup_percent": 0,
     "min_cost": 0,
-    "setup_cost": "200"
+    "setup_cost": 200
   },
   {
     "name": "фрезеровка",
     "mode": "lm",
     "rate": 120,
-    "cost": "30",
-    "markup_percent": "300",
+    "cost": 30,
+    "markup_percent": 300,
     "min_cost": 0,
-    "setup_cost": "200"
+    "setup_cost": 200
   },
   {
     "name": "ручная резка",
     "mode": "lm",
     "rate": 30,
-    "cost": "30",
+    "cost": 30,
     "markup_percent": 0,
     "min_cost": 0,
-    "setup_cost": "100"
+    "setup_cost": 100
   },
   {
     "name": "УФ печать с белым",
     "mode": "sqm",
     "rate": 1400,
-    "cost": "1400",
+    "cost": 1400,
     "markup_percent": 0,
     "min_cost": 0,
-    "setup_cost": "200"
+    "setup_cost": 200
   },
   {
     "name": "лазерная резка 1мм",
     "mode": "lm",
     "rate": 80,
-    "cost": "20",
-    "markup_percent": "300",
+    "cost": 20,
+    "markup_percent": 300,
     "min_cost": 0,
-    "setup_cost": "200"
+    "setup_cost": 200
   },
   {
     "name": "лазерная резка 1,5мм",
     "mode": "lm",
     "rate": 80,
-    "cost": "20",
-    "markup_percent": "300",
+    "cost": 20,
+    "markup_percent": 300,
     "min_cost": 0,
-    "setup_cost": "200"
+    "setup_cost": 200
   },
   {
     "name": "лазерная резка 2мм",
     "mode": "lm",
     "rate": 100,
-    "cost": "25",
-    "markup_percent": "300",
+    "cost": 25,
+    "markup_percent": 300,
     "min_cost": 0,
-    "setup_cost": "200"
+    "setup_cost": 200
   },
   {
     "name": "лазерная резка 3мм",
     "mode": "lm",
     "rate": 120,
-    "cost": "30",
-    "markup_percent": "300",
+    "cost": 30,
+    "markup_percent": 300,
     "min_cost": 0,
-    "setup_cost": "200"
+    "setup_cost": 200
   },
   {
     "name": "лазерная резка 4мм",
     "mode": "lm",
     "rate": 140,
-    "cost": "40",
-    "markup_percent": "250",
+    "cost": 40,
+    "markup_percent": 250,
     "min_cost": 0,
-    "setup_cost": "200"
+    "setup_cost": 200
   },
   {
     "name": "лазерная резка 5мм",
     "mode": "lm",
     "rate": 175,
-    "cost": "50",
-    "markup_percent": "250",
+    "cost": 50,
+    "markup_percent": 250,
     "min_cost": 0,
-    "setup_cost": "200"
+    "setup_cost": 200
   },
   {
     "name": "лазерная резка 8мм",
     "mode": "lm",
     "rate": 245,
-    "cost": "70",
-    "markup_percent": "250",
+    "cost": 70,
+    "markup_percent": 250,
     "min_cost": 0,
-    "setup_cost": "200"
+    "setup_cost": 200
   },
   {
     "name": "лазерная резка 10мм",
     "mode": "lm",
     "rate": 280,
-    "cost": "80",
-    "markup_percent": "250",
+    "cost": 80,
+    "markup_percent": 250,
     "min_cost": 0,
-    "setup_cost": "200"
+    "setup_cost": 200
   },
   {
     "name": "гравировка",
@@ -114,105 +114,105 @@
     "cost": 0,
     "markup_percent": 0,
     "min_cost": 0,
-    "setup_cost": "200"
+    "setup_cost": 200
   },
   {
     "name": "резка пвх 3мм",
     "mode": "lm",
     "rate": 35,
-    "cost": "35",
+    "cost": 35,
     "markup_percent": 0,
     "min_cost": 0,
-    "setup_cost": "100"
+    "setup_cost": 100
   },
   {
     "name": "резка пвх 5мм",
     "mode": "lm",
     "rate": 45,
-    "cost": "45",
+    "cost": 45,
     "markup_percent": 0,
     "min_cost": 0,
-    "setup_cost": "100"
+    "setup_cost": 100
   },
   {
     "name": "Плоттерная резка кв/м",
     "mode": "sqm",
     "rate": 300,
-    "cost": "300",
+    "cost": 300,
     "markup_percent": 0,
     "min_cost": 0,
-    "setup_cost": "200"
+    "setup_cost": 200
   },
   {
     "name": "Плоттерная резка п/м",
     "mode": "lm",
     "rate": 15,
-    "cost": "15",
+    "cost": 15,
     "markup_percent": 0,
     "min_cost": 0,
-    "setup_cost": "200"
+    "setup_cost": 200
   },
   {
     "name": "уф печать баннера",
     "mode": "sqm",
     "rate": 800,
-    "cost": "800",
+    "cost": 800,
     "markup_percent": 0,
     "min_cost": 0,
-    "setup_cost": "200"
+    "setup_cost": 200
   },
   {
     "name": "установка люверсов",
     "mode": "grommet",
     "rate": 18.2,
-    "cost": "2.6",
-    "markup_percent": "600",
+    "cost": 2.6,
+    "markup_percent": 600,
     "min_cost": 0,
-    "setup_cost": "200"
+    "setup_cost": 200
   },
   {
     "name": "проклейка баннера",
     "mode": "lm",
     "rate": 50,
-    "cost": "50",
+    "cost": 50,
     "markup_percent": 0,
     "min_cost": 0,
-    "setup_cost": "200"
+    "setup_cost": 200
   },
   {
     "name": "оклейка пленкой",
     "mode": "sqm",
     "rate": 300,
-    "cost": "300",
-    "markup_percent": "",
-    "min_cost": "100",
-    "setup_cost": "200"
+    "cost": 300,
+    "markup_percent": 0,
+    "min_cost": 100,
+    "setup_cost": 200
   },
   {
     "name": "гиб до 5мм толщина",
     "mode": "lm",
     "rate": 100,
-    "cost": "100",
+    "cost": 100,
     "markup_percent": 0,
-    "min_cost": "200",
-    "setup_cost": "200"
+    "min_cost": 200,
+    "setup_cost": 200
   },
   {
     "name": "выборка и накатка монтажной пленки",
     "mode": "sqm",
     "rate": 800,
-    "cost": "800",
+    "cost": 800,
     "markup_percent": 0,
     "min_cost": 0,
-    "setup_cost": "200"
+    "setup_cost": 200
   },
   {
     "name": "магнит бейджи наклейка",
     "mode": "pc",
     "rate": 80,
-    "cost": "40",
-    "markup_percent": "100",
+    "cost": 40,
+    "markup_percent": 100,
     "min_cost": 0,
-    "setup_cost": "200"
+    "setup_cost": 200
   }
 ]

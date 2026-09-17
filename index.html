@@ -427,18 +427,22 @@ function perimeter() {
 function materialSum() {
   const m = state.draft.material;
   if (!m) return 0;
-  if (m.mode === "sqm") return area() * state.product.qty * m.rate;
-  if (m.mode === "lm") return (state.draft.material_length_m || 0) * state.product.qty * m.rate;
-  return (state.draft.qty_per_unit || 1) * state.product.qty * m.rate;
+  const rate = Number(m.rate) || 0;
+  if (m.mode === "sqm") return area() * state.product.qty * rate;
+  if (m.mode === "lm") return (state.draft.material_length_m || 0) * state.product.qty * rate;
+  return (state.draft.qty_per_unit || 1) * state.product.qty * rate;
 }
 
 function opSum(op) {
+  const rate = Number(op.rate) || 0;
+  const setupCost = Number(op.setup_cost) || 0;
+  const minCost = Number(op.min_cost) || 0;
   let raw;
-  if (op.mode === "sqm") raw = area() * state.product.qty * op.rate + (op.setup_cost || 0);
-  else if (op.mode === "lm") raw = (op.length_m || 0) * state.product.qty * op.rate + (op.setup_cost || 0);
-  else if (op.mode === "grommet") raw = (op.grommet_count || 0) * state.product.qty * op.rate + (op.setup_cost || 0);
-  else raw = state.product.qty * op.rate + (op.setup_cost || 0);
-  return op.min_cost ? Math.max(raw, op.min_cost) : raw;
+  if (op.mode === "sqm") raw = area() * state.product.qty * rate + setupCost;
+  else if (op.mode === "lm") raw = (op.length_m || 0) * state.product.qty * rate + setupCost;
+  else if (op.mode === "grommet") raw = (op.grommet_count || 0) * state.product.qty * rate + setupCost;
+  else raw = state.product.qty * rate + setupCost;
+  return minCost ? Math.max(raw, minCost) : raw;
 }
 
 function componentTotal(c) {
@@ -529,7 +533,7 @@ function renderInner() {
       "Компонент " + (state.components.length + 1) + ": материал",
       "Введите название материала...",
       (m) => {
-        state.draft.material = { name: m.name, mode: m.mode, rate: m.rate };
+        state.draft.material = { name: m.name, mode: m.mode, rate: Number(m.rate) || 0 };
         checkOperationsCompatibility(m.name);
         finishComponent();
       }
@@ -676,7 +680,7 @@ function renderInner() {
       "Операция",
       "Введите название операции...",
       (o) => {
-        state.opDraft = { name: o.name, mode: o.mode, rate: o.rate, length_m: 0, setup_cost: o.setup_cost || 0, grommet_count: 0, spacing_cm: 30, min_cost: o.min_cost || 0 };
+        state.opDraft = { name: o.name, mode: o.mode, rate: Number(o.rate) || 0, length_m: 0, setup_cost: Number(o.setup_cost) || 0, grommet_count: 0, spacing_cm: 30, min_cost: Number(o.min_cost) || 0 };
         if (o.mode === "lm") {
           state.opDraft.length_m = perimeter();
         } else if (o.mode === "grommet") {
@@ -842,18 +846,18 @@ function renderInner() {
     let compHtml = state.components.map((c, i) => {
       const opsHtml = c.ops.map((o, opIdx) => {
         const extraFieldHtml = o.mode === "lm"
-          ? `<input type="number" step="0.01" class="inline-num" title="Длина, м" placeholder="Длина, м" value="${o.length_m || 0}" onchange="updateOperationField(${i},${opIdx},'length_m',this.value)">`
+          ? `<div class="compact-field"><label>Длина, м</label><input type="number" step="0.01" class="inline-num" value="${o.length_m || 0}" onchange="updateOperationField(${i},${opIdx},'length_m',this.value)"></div>`
           : (o.mode === "grommet"
-            ? `<input type="number" class="inline-num" title="Кол-во" placeholder="Кол-во" value="${o.grommet_count || 0}" onchange="updateOperationField(${i},${opIdx},'grommet_count',this.value)">`
+            ? `<div class="compact-field"><label>Кол-во</label><input type="number" class="inline-num" value="${o.grommet_count || 0}" onchange="updateOperationField(${i},${opIdx},'grommet_count',this.value)"></div>`
             : "");
         const detail = calcDetailText(o.mode, o.rate, areaFor(c), o.length_m, c.height, c.width, o.grommet_count, o.spacing_cm, o.min_cost, o.sum);
-        return `<div class="op-row" style="margin-left:14px; border-left:2px solid var(--tg-theme-hint-color,#cccccc); padding-left:10px; display:flex; justify-content:flex-start; align-items:center; gap:6px; flex-wrap:wrap;" title="${detail}">
-          <div class="name" style="min-width:80px; margin-right:4px;">${o.name}</div>
-          <input type="number" step="0.01" class="inline-num" title="Тариф" placeholder="Тариф" value="${o.rate}" onchange="updateOperationField(${i},${opIdx},'rate',this.value)">
+        return `<div class="op-row" style="margin-left:14px; border-left:2px solid var(--tg-theme-hint-color,#cccccc); padding-left:10px; display:flex; justify-content:flex-start; align-items:flex-end; gap:6px; flex-wrap:wrap;" title="${detail}">
+          <div class="name" style="min-width:80px; margin-right:4px; padding-bottom:6px;">${o.name}</div>
+          <div class="compact-field"><label>Тариф</label><input type="number" step="0.01" class="inline-num" value="${o.rate}" onchange="updateOperationField(${i},${opIdx},'rate',this.value)"></div>
           ${extraFieldHtml}
-          <input type="number" step="0.01" class="inline-num" title="Приладка" placeholder="Приладка" value="${o.setup_cost || 0}" onchange="updateOperationField(${i},${opIdx},'setup_cost',this.value)">
-          <div class="sum" style="min-width:60px; text-align:right;">${(Number(o.sum) || 0).toFixed(0)} руб.</div>
-          <button class="btn btn-sm" onclick="deleteOperation(${i}, ${opIdx})" style="background:#e5484d; color:#fff;">✕</button>
+          <div class="compact-field"><label>Приладка</label><input type="number" step="0.01" class="inline-num" value="${o.setup_cost || 0}" onchange="updateOperationField(${i},${opIdx},'setup_cost',this.value)"></div>
+          <div class="sum" style="min-width:60px; text-align:right; padding-bottom:6px;">${(Number(o.sum) || 0).toFixed(0)} руб.</div>
+          <button class="btn btn-sm" onclick="deleteOperation(${i}, ${opIdx})" style="background:#e5484d; color:#fff; margin-bottom:6px;">✕</button>
         </div>`;
       }).join("");
 
@@ -1003,17 +1007,20 @@ function calcDetailText(mode, rate, area, lengthM, height, width, grommetCount, 
 }
 
 function opSumFor(c, op) {
+  const rate = Number(op.rate) || 0;
+  const setupCost = Number(op.setup_cost) || 0;
+  const minCost = Number(op.min_cost) || 0;
   let raw;
   if (op.mode === "sqm") {
-    raw = areaFor(c) * state.product.qty * op.rate + (op.setup_cost || 0);
+    raw = areaFor(c) * state.product.qty * rate + setupCost;
   } else if (op.mode === "lm") {
-    raw = (op.length_m || 0) * state.product.qty * op.rate + (op.setup_cost || 0);
+    raw = (op.length_m || 0) * state.product.qty * rate + setupCost;
   } else if (op.mode === "grommet") {
-    raw = (op.grommet_count || 0) * state.product.qty * op.rate + (op.setup_cost || 0);
+    raw = (op.grommet_count || 0) * state.product.qty * rate + setupCost;
   } else {
-    raw = state.product.qty * op.rate + (op.setup_cost || 0);
+    raw = state.product.qty * rate + setupCost;
   }
-  return op.min_cost ? Math.max(raw, op.min_cost) : raw;
+  return minCost ? Math.max(raw, minCost) : raw;
 }
 
 function editOperationLength(componentIndex, opIndex) {
@@ -1069,9 +1076,10 @@ function updateOperationField(compIndex, opIndex, field, value) {
 }
 
 function materialSumFor(c) {
-  if (c.material.mode === "sqm") return areaFor(c) * state.product.qty * c.material.rate;
-  if (c.material.mode === "lm") return (c.material_length_m || 0) * state.product.qty * c.material.rate;
-  return (c.qty_per_unit || 1) * state.product.qty * c.material.rate;
+  const rate = Number(c.material.rate) || 0;
+  if (c.material.mode === "sqm") return areaFor(c) * state.product.qty * rate;
+  if (c.material.mode === "lm") return (c.material_length_m || 0) * state.product.qty * rate;
+  return (c.qty_per_unit || 1) * state.product.qty * rate;
 }
 
 function updateComponentDimensions(i) {

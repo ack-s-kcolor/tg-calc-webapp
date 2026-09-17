@@ -634,10 +634,10 @@ document.getElementById("downloadOp").onclick = () => {
         name: item.name.trim(),
         mode: item.mode,
         rate: Math.round(rate * 100) / 100,
-        cost: item.cost || 0,
-        markup_percent: item.markup_percent !== undefined ? item.markup_percent : 0,
-        min_cost: item.min_cost || 0,
-        setup_cost: item.setup_cost || 0
+        cost: parseFloat(item.cost) || 0,
+        markup_percent: parseFloat(item.markup_percent) || 0,
+        min_cost: parseFloat(item.min_cost) || 0,
+        setup_cost: parseFloat(item.setup_cost) || 0
       };
     });
   const json = JSON.stringify(cleaned, null, 2);
