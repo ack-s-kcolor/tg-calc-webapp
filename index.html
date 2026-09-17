@@ -224,8 +224,9 @@ function getAllowedOperations(materialName) {
     return operations;
   }
   if (entry.no_operations) return [];
-  if (entry.operations.length === 0) return operations;
-  return operations.filter(o => entry.operations.includes(o.name));
+  const list = Array.isArray(entry.operations) ? entry.operations : [];
+  if (list.length === 0) return operations;
+  return operations.filter(o => list.includes(o.name));
 }
 
 function materialHasNoOperations(materialName) {
