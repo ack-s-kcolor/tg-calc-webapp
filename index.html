@@ -360,25 +360,32 @@ function applyOrderPayload(payload) {
     qty: payload.product.qty || 1,
     multi: true // после загрузки всегда разрешаем добавлять ещё компоненты
   };
-  state.components = payload.components.map(c => ({
-    material: c.material,
-    height: c.height_mm,
-    width: c.width_mm,
-    qty: c.qty,
-    material_length_m: c.material_length_m || 0,
-    ops: (c.operations || []).map(o => ({
-      name: o.name,
-      mode: o.mode,
-      rate: o.rate,
-      length_m: o.length_m || 0,
-      setup_cost: o.setup_cost || 0,
-      grommet_count: o.grommet_count || 0,
-      spacing_cm: o.spacing_cm || 30,
-      min_cost: o.min_cost || 0,
-      sum: o.sum
-    })),
-    materialSum: c.material_sum
-  }));
+  state.components = payload.components.map(c => {
+    const comp = {
+      material: c.material,
+      height: c.height_mm,
+      width: c.width_mm,
+      qty: c.qty,
+      qty_per_unit: c.qty_per_unit || 1,
+      material_length_m: c.material_length_m || 0,
+      ops: (c.operations || []).map(o => ({
+        name: o.name,
+        mode: o.mode,
+        rate: o.rate,
+        length_m: o.length_m || 0,
+        setup_cost: o.setup_cost || 0,
+        grommet_count: o.grommet_count || 0,
+        spacing_cm: o.spacing_cm || 30,
+        min_cost: o.min_cost || 0,
+        sum: 0
+      }))
+    };
+    // пересчитываем суммы заново от актуального тиража, а не доверяем файлу —
+    // так файл со старой/повреждённой структурой не сломает отображение
+    comp.materialSum = materialSumFor(comp);
+    comp.ops.forEach(op => { op.sum = opSumFor(comp, op); });
+    return comp;
+  });
   stepHistory = [];
   goToStep("component_done");
 }
@@ -960,6 +967,7 @@ function render() {
         <div style="font-weight:600; margin-bottom:8px;">Произошла ошибка при отображении экрана</div>
         <div style="margin-bottom:6px;">Шаг: ${state.step}</div>
         <div style="font-family:monospace; white-space:pre-wrap; word-break:break-word;">${(e && e.message) || e}</div>
+        <div style="font-family:monospace; white-space:pre-wrap; word-break:break-word; font-size:11px; margin-top:8px; opacity:0.8;">${(e && e.stack) ? e.stack.split("\n").slice(0,4).join("\n") : ""}</div>
       </div>
       <button class="btn secondary" style="margin-top:10px;" onclick="location.reload()">Перезагрузить страницу</button>
     `;
