@@ -421,7 +421,7 @@ function materialSum() {
   if (!m) return 0;
   if (m.mode === "sqm") return area() * state.product.qty * m.rate;
   if (m.mode === "lm") return (state.draft.material_length_m || 0) * state.product.qty * m.rate;
-  return state.product.qty * m.rate;
+  return (state.draft.qty_per_unit || 1) * state.product.qty * m.rate;
 }
 
 function opSum(op) {
@@ -803,7 +803,7 @@ function render() {
     app.innerHTML = `
       <h1>Компонент готов</h1>
       <div class="summary-line"><div class="name">${c.material.name}</div><div class="sum">${c.materialSum.toFixed(0)} руб.</div>
-        <div class="detail">${calcDetailText(c.material.mode, c.material.rate, areaFor(c), c.material_length_m, c.height, c.width)}</div>
+        <div class="detail">${calcDetailText(c.material.mode, c.material.rate, areaFor(c), c.material_length_m, c.height, c.width, undefined, undefined, undefined, undefined, c.material.mode === "pc" ? (c.qty_per_unit || 1) : undefined)}</div>
       </div>
       ${opsHtml}
       <div class="total"><span>Сумма компонента</span><span>${componentTotal(c).toFixed(0)} руб.</span></div>
@@ -852,6 +852,9 @@ function render() {
       const lenFieldHtml = c.material.mode === "lm" ? `
         <div class="compact-field"><label>Длина, м</label><input type="number" step="0.01" id="compLen${i}" value="${c.material_length_m || ""}" placeholder="0" onchange="updateComponentDimensions(${i})"></div>
       ` : "";
+      const qtyPerUnitFieldHtml = c.material.mode === "pc" ? `
+        <div class="compact-field"><label>Кол-во на 1 изд.</label><input type="number" id="compQtyPerUnit${i}" value="${c.qty_per_unit || 1}" min="1" onchange="updateComponentDimensions(${i})"></div>
+      ` : "";
 
       return `
         <div data-component-index="${i}" class="summary-line" style="padding-bottom:10px;">
@@ -863,13 +866,14 @@ function render() {
             </div>
             <div class="sum">${componentTotal(c).toFixed(0)} руб.</div>
           </div>
-          <div class="detail">${calcDetailText(c.material.mode, c.material.rate, areaFor(c), c.material_length_m, c.height, c.width)}</div>
+          <div class="detail">${calcDetailText(c.material.mode, c.material.rate, areaFor(c), c.material_length_m, c.height, c.width, undefined, undefined, undefined, undefined, c.material.mode === "pc" ? (c.qty_per_unit || 1) : undefined)}</div>
           <div class="compact-row">
             <div class="compact-field"><label>Высота, мм</label><input type="number" id="compHeight${i}" value="${c.height || ""}" placeholder="0" onchange="updateComponentDimensions(${i})"></div>
             <div class="compact-field"><label>Ширина, мм</label><input type="number" id="compWidth${i}" value="${c.width || ""}" placeholder="0" onchange="updateComponentDimensions(${i})"></div>
             <div class="compact-field"><label>Тариф материала</label><input type="number" step="0.01" id="compRate${i}" value="${c.material.rate}" onchange="updateComponentDimensions(${i})"></div>
             <div class="compact-field"><label>Сумма</label><div style="font-weight:600; font-size:13px; padding:6px 0;" id="compMatSum${i}">${c.materialSum.toFixed(0)} руб.</div></div>
             ${lenFieldHtml}
+            ${qtyPerUnitFieldHtml}
           </div>
           ${opsHtml}
           <button class="icon-btn" title="Добавить операцию" onclick="addOperationToComponent(${i})" style="margin-top:8px;">+</button>
@@ -954,12 +958,13 @@ function areaFor(c) {
   return (c.height / 1000) * (c.width / 1000);
 }
 
-function calcDetailText(mode, rate, area, lengthM, height, width, grommetCount, spacingCm, minCost, sum) {
+function calcDetailText(mode, rate, area, lengthM, height, width, grommetCount, spacingCm, minCost, sum, qtyPerUnit) {
   const dims = (height && width) ? `${height}x${width}мм · ` : "";
   let base;
   if (mode === "sqm") base = `${dims}${area.toFixed(4)} м² × ${rate} руб/м²`;
   else if (mode === "lm") base = `${dims}${(lengthM || 0).toFixed(2)} м × ${rate} руб/м.п.`;
   else if (mode === "grommet") base = `${dims}${grommetCount || 0} шт (шаг ${spacingCm || 30} см) × ${rate} руб/шт`;
+  else if (qtyPerUnit !== undefined) base = `${qtyPerUnit || 1} шт на 1 изд. × ${rate} руб/шт`;
   else base = `${dims}${rate} руб/шт`;
   if (minCost && sum !== undefined && Math.abs(sum - minCost) < 0.01) {
     base += ` · применён минимум ${minCost} руб.`;
@@ -1033,24 +1038,26 @@ function updateOperationField(compIndex, opIndex, field, value) {
   render();
 }
 
+function materialSumFor(c) {
+  if (c.material.mode === "sqm") return areaFor(c) * state.product.qty * c.material.rate;
+  if (c.material.mode === "lm") return (c.material_length_m || 0) * state.product.qty * c.material.rate;
+  return (c.qty_per_unit || 1) * state.product.qty * c.material.rate;
+}
+
 function updateComponentDimensions(i) {
   const c = state.components[i];
   const heightInput = document.getElementById("compHeight" + i);
   const widthInput = document.getElementById("compWidth" + i);
   const rateInput = document.getElementById("compRate" + i);
   const lenInput = document.getElementById("compLen" + i);
+  const qtyPerUnitInput = document.getElementById("compQtyPerUnit" + i);
   if (heightInput) c.height = parseFloat(heightInput.value) || 0;
   if (widthInput) c.width = parseFloat(widthInput.value) || 0;
   if (rateInput) c.material.rate = parseFloat(rateInput.value) || 0;
   if (lenInput) c.material_length_m = parseFloat(lenInput.value) || 0;
+  if (qtyPerUnitInput) c.qty_per_unit = parseInt(qtyPerUnitInput.value) || 1;
 
-  if (c.material.mode === "sqm") {
-    c.materialSum = areaFor(c) * state.product.qty * c.material.rate;
-  } else if (c.material.mode === "lm") {
-    c.materialSum = (c.material_length_m || 0) * state.product.qty * c.material.rate;
-  } else {
-    c.materialSum = state.product.qty * c.material.rate;
-  }
+  c.materialSum = materialSumFor(c);
   c.ops.forEach(op => { op.sum = opSumFor(c, op); });
 
   render();
@@ -1059,13 +1066,7 @@ function updateComponentDimensions(i) {
 function updateProductQty(value) {
   state.product.qty = parseInt(value) || 1;
   state.components.forEach(c => {
-    if (c.material.mode === "sqm") {
-      c.materialSum = areaFor(c) * state.product.qty * c.material.rate;
-    } else if (c.material.mode === "lm") {
-      c.materialSum = (c.material_length_m || 0) * state.product.qty * c.material.rate;
-    } else {
-      c.materialSum = state.product.qty * c.material.rate;
-    }
+    c.materialSum = materialSumFor(c);
     c.ops.forEach(op => { op.sum = opSumFor(c, op); });
   });
   render();
@@ -1078,6 +1079,7 @@ function editMaterial(index) {
     height: c.height,
     width: c.width,
     qty: c.qty,
+    qty_per_unit: c.qty_per_unit || 1,
     ops: c.ops,
     material_length_m: c.material_length_m || 0
   };
@@ -1092,6 +1094,7 @@ function addOperationToComponent(index) {
     height: c.height,
     width: c.width,
     qty: c.qty,
+    qty_per_unit: c.qty_per_unit || 1,
     ops: c.ops,
     material_length_m: c.material_length_m || 0
   };
@@ -1100,7 +1103,7 @@ function addOperationToComponent(index) {
 }
 
 function startComponent() {
-  state.draft = { material: null, height: 0, width: 0, qty: 1, material_length_m: 0, ops: [] };
+  state.draft = { material: null, height: 0, width: 0, qty: 1, qty_per_unit: 1, material_length_m: 0, ops: [] };
   goToStep("material_search");
 }
 
