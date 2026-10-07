@@ -1,10 +1,8 @@
 {
   "rate": 20,
   "thread": 15,
-  "speed": 600,
-  "colorMin": 0,
   "operator": 417,
-  "machineHour": 30,
+  "machineHour": 500,
   "digitizing": 1000,
   "backing": 25,
   "minCost": 1000
