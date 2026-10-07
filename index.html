@@ -982,6 +982,14 @@ function renderInner() {
 // Стоимость = работа по стежкам + нитки + оператор + стоимость работы машины
 //             + разработка дизайна (если отмечено) с учётом минималки + изделие со стабилизатором и плёнкой.
 let embDefaults = { rate: 20, thread: 0, operator: 0, machineHour: 0, digitizing: 500, backing: 0, minCost: 0 };
+// коэффициент в зависимости от тиража: диапазон «до N шт включительно»; тираж больше последнего порога берёт последний коэффициент
+let embTiers = [{ upTo: 10, coef: 1 }, { upTo: 100, coef: 1 }, { upTo: 300, coef: 1 }, { upTo: 500, coef: 1 }, { upTo: 1000, coef: 1 }];
+
+function embTierFor(qty) {
+  const tier = embTiers.find(t => qty <= t.upTo);
+  return tier || embTiers[embTiers.length - 1] || { upTo: Infinity, coef: 1 };
+}
+
 const emb = {
   name: "", qty: 1, stitches: 0, machineMin: 0, operatorMin: 0, design: false, garment: 0,
   rate: null, thread: null, operator: null, machineHour: null, digitizing: null, backing: null, minCost: null
@@ -997,10 +1005,12 @@ function embCalc() {
   const stitches = Number(emb.stitches) || 0;
   const machineMinutes = (Number(emb.machineMin) || 0) * qty;
   const operatorMinutes = (Number(emb.operatorMin) || 0) * qty;
-  const stitchSum = stitches / 1000 * embVal("rate") * qty;
-  const threadSum = stitches / 1000 * embVal("thread") * qty;
-  const operatorSum = operatorMinutes / 60 * embVal("operator");
-  const machineSum = machineMinutes / 60 * embVal("machineHour");
+  const tier = embTierFor(qty);
+  const coef = Number(tier.coef) || 1;
+  const stitchSum = stitches / 1000 * embVal("rate") * qty * coef;
+  const threadSum = stitches / 1000 * embVal("thread") * qty * coef;
+  const operatorSum = operatorMinutes / 60 * embVal("operator") * coef;
+  const machineSum = machineMinutes / 60 * embVal("machineHour") * coef;
   const digitizing = emb.design ? embVal("digitizing") : 0;
   const workRaw = stitchSum + threadSum + operatorSum + machineSum + digitizing;
   const minCost = embVal("minCost");
@@ -1009,7 +1019,7 @@ function embCalc() {
   const goodsPerPiece = (Number(emb.garment) || 0) + embVal("backing");
   const goods = goodsPerPiece * qty;
   const total = work + goods;
-  return { qty, stitches, machineMinutes, operatorMinutes, stitchSum, threadSum, operatorSum, machineSum, digitizing, topUp, work, goodsPerPiece, goods, total };
+  return { qty, coef, tier, stitches, machineMinutes, operatorMinutes, stitchSum, threadSum, operatorSum, machineSum, digitizing, topUp, work, goodsPerPiece, goods, total };
 }
 
 function embFmtTime(minutes) {
@@ -1046,6 +1056,7 @@ function embPayload() {
       machine_minutes_per_piece: Number(emb.machineMin) || 0,
       operator_minutes_per_piece: Number(emb.operatorMin) || 0,
       design_developed: !!emb.design,
+      tirage_coefficient: r.coef,
       rate_per_1000: embVal("rate"), thread_per_1000: embVal("thread"),
       operator_per_hour: embVal("operator"), machine_per_hour: embVal("machineHour"),
       digitizing: embVal("digitizing"), garment: Number(emb.garment) || 0, backing: embVal("backing"), min_cost: embVal("minCost")
@@ -1058,6 +1069,7 @@ function embResultHtml() {
   const f = (v) => (Math.round(v * 100) / 100).toLocaleString("ru-RU");
   const line = (label, v) => `<div style="display:flex; justify-content:space-between; gap:8px; font-size:13px; padding:2px 0;"><span>${label}</span><span>${f(v)} руб.</span></div>`;
   let h = `<div class="hint" style="margin:0 0 6px;">На весь тираж: машина ${embFmtTime(r.machineMinutes)}, оператор ${embFmtTime(r.operatorMinutes)}</div>`;
+  h += `<div class="hint" style="margin:0 0 6px;">Коэффициент тиража: ×${r.coef} (${r.qty} шт)</div>`;
   h += line(`Вышивка: ${r.stitches} стеж. × ${r.qty} шт`, r.stitchSum);
   if (r.threadSum > 0) h += line("Нитки", r.threadSum);
   if (r.operatorSum > 0) h += line("Работа оператора", r.operatorSum);
@@ -1369,6 +1381,13 @@ Promise.all([
 ]).then(([m, o, link, tpl, embCfg]) => {
   if (embCfg && typeof embCfg === "object") {
     Object.keys(embDefaults).forEach(k => { if (embCfg[k] !== undefined) embDefaults[k] = Number(embCfg[k]) || 0; });
+    if (Array.isArray(embCfg.tiers)) {
+      const tiers = embCfg.tiers
+        .map(t => ({ upTo: Number(t.upTo), coef: Number(t.coef) }))
+        .filter(t => t.upTo > 0 && t.coef > 0)
+        .sort((a, b) => a.upTo - b.upTo);
+      if (tiers.length > 0) embTiers = tiers;
+    }
   }
   materials = m;
   operations = o;

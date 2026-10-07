@@ -292,6 +292,28 @@
     <tbody id="rowsEmb"></tbody>
   </table>
 
+  <h3 style="margin:24px 0 6px;">Коэффициент в зависимости от тиража</h3>
+  <div class="hint" style="margin-top:0;">
+    Коэффициент умножает работы, которые зависят от тиража: вышивку по стежкам, нитки, работу оператора и
+    работу машины. Разработка дизайна, изделие, стабилизатор с плёнкой и минимальная стоимость на него
+    не умножаются. Для тиража больше последнего диапазона берётся последний коэффициент.
+    Меньше 1 — скидка, больше 1 — наценка.
+  </div>
+  <table style="max-width:640px;">
+    <thead>
+      <tr>
+        <th style="width:200px">Тираж, шт</th>
+        <th style="width:160px">До, шт (включительно)</th>
+        <th style="width:140px">Коэффициент</th>
+        <th style="width:90px"></th>
+      </tr>
+    </thead>
+    <tbody id="rowsEmbTiers"></tbody>
+  </table>
+  <div class="actions">
+    <button class="secondary" id="addEmbTier">+ Добавить диапазон</button>
+  </div>
+
   <div class="actions">
     <button id="downloadEmb">Скачать embroidery.json</button>
   </div>
@@ -722,6 +744,57 @@ const embFields = [
   ["minCost", "Минимальная стоимость работ", "руб."]
 ];
 let embData = { rate: 20, thread: 0, operator: 0, machineHour: 0, digitizing: 500, backing: 0, minCost: 0 };
+let embTiersData = [{ upTo: 10, coef: 1 }, { upTo: 100, coef: 1 }, { upTo: 300, coef: 1 }, { upTo: 500, coef: 1 }, { upTo: 1000, coef: 1 }];
+
+function renderEmbTiers() {
+  const tbody = document.getElementById("rowsEmbTiers");
+  tbody.innerHTML = "";
+  embTiersData.forEach((t, i) => {
+    const tr = document.createElement("tr");
+    const rangeTd = document.createElement("td");
+    rangeTd.id = "embTierRange" + i;
+    rangeTd.style.color = "#555";
+    const upTd = document.createElement("td");
+    const upInput = document.createElement("input");
+    upInput.type = "number"; upInput.min = "1"; upInput.step = "1";
+    upInput.value = t.upTo;
+    upInput.oninput = (e) => { embTiersData[i].upTo = e.target.value; updateEmbTierLabels(); };
+    upTd.appendChild(upInput);
+    const coefTd = document.createElement("td");
+    const coefInput = document.createElement("input");
+    coefInput.type = "number"; coefInput.min = "0"; coefInput.step = "0.01";
+    coefInput.value = t.coef;
+    coefInput.oninput = (e) => { embTiersData[i].coef = e.target.value; };
+    coefTd.appendChild(coefInput);
+    const delTd = document.createElement("td");
+    const delBtn = document.createElement("button");
+    delBtn.className = "danger";
+    delBtn.textContent = "Удалить";
+    delBtn.onclick = () => { embTiersData.splice(i, 1); renderEmbTiers(); };
+    delTd.appendChild(delBtn);
+    tr.appendChild(rangeTd); tr.appendChild(upTd); tr.appendChild(coefTd); tr.appendChild(delTd);
+    tbody.appendChild(tr);
+  });
+  updateEmbTierLabels();
+}
+
+function updateEmbTierLabels() {
+  // подпись диапазона считается по порогам: «от» = предыдущий порог + 1
+  const sorted = embTiersData.map((t, i) => ({ i, up: parseInt(t.upTo) || 0 })).sort((a, b) => a.up - b.up);
+  let prev = 0;
+  sorted.forEach(({ i, up }) => {
+    const el = document.getElementById("embTierRange" + i);
+    if (el) el.textContent = `${prev + 1} – ${up}`;
+    prev = up;
+  });
+}
+
+document.getElementById("addEmbTier").onclick = () => {
+  const last = embTiersData.reduce((m, t) => Math.max(m, parseInt(t.upTo) || 0), 0);
+  embTiersData.push({ upTo: last + 100, coef: 1 });
+  renderEmbTiers();
+};
+
 
 function renderEmb() {
   const tbody = document.getElementById("rowsEmb");
@@ -757,7 +830,11 @@ document.getElementById("fileInputEmb").addEventListener("change", (e) => {
       const parsed = JSON.parse(evt.target.result);
       if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error("not object");
       embFields.forEach(([key]) => { if (parsed[key] !== undefined) embData[key] = parsed[key]; });
+      if (Array.isArray(parsed.tiers) && parsed.tiers.length > 0) {
+        embTiersData = parsed.tiers.map(t => ({ upTo: t.upTo, coef: t.coef }));
+      }
       renderEmb();
+      renderEmbTiers();
       document.getElementById("statusEmb").textContent = `Загружено: ${file.name}`;
     } catch (err) {
       document.getElementById("statusEmb").textContent = "Не удалось прочитать файл: это не корректный JSON.";
@@ -769,6 +846,12 @@ document.getElementById("fileInputEmb").addEventListener("change", (e) => {
 document.getElementById("downloadEmb").onclick = () => {
   const out = {};
   embFields.forEach(([key]) => { out[key] = parseFloat(embData[key]) || 0; });
+  const tiers = embTiersData
+    .map(t => ({ upTo: parseInt(t.upTo), coef: parseFloat(t.coef) }))
+    .filter(t => t.upTo > 0 && t.coef > 0)
+    .sort((a, b) => a.upTo - b.upTo);
+  const seen = new Set();
+  out.tiers = tiers.filter(t => !seen.has(t.upTo) && seen.add(t.upTo));
   const blob = new Blob([JSON.stringify(out, null, 2)], { type: "application/json" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
@@ -780,6 +863,7 @@ document.getElementById("downloadEmb").onclick = () => {
 };
 
 renderEmb();
+renderEmbTiers();
 
 // ---------- Материал -> Операции ----------
 

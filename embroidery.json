@@ -1,9 +1,31 @@
 {
   "rate": 20,
-  "thread": 15,
-  "operator": 417,
+  "thread": 3,
+  "operator": 420,
   "machineHour": 500,
   "digitizing": 1000,
   "backing": 25,
-  "minCost": 1000
+  "minCost": 1000,
+  "tiers": [
+    {
+      "upTo": 10,
+      "coef": 2.5
+    },
+    {
+      "upTo": 100,
+      "coef": 2.2
+    },
+    {
+      "upTo": 300,
+      "coef": 2
+    },
+    {
+      "upTo": 500,
+      "coef": 1.8
+    },
+    {
+      "upTo": 1000,
+      "coef": 1.5
+    }
+  ]
 }
