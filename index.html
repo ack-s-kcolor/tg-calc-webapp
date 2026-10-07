@@ -978,14 +978,13 @@ function renderInner() {
 
 
 // ---------- Калькулятор машинной вышивки ----------
+// Вводятся: стежки, время машины и время оператора (мин на 1 изделие), галочка «дизайн разрабатывался».
 // Стоимость = работа по стежкам + нитки + оператор + амортизация/электричество
-//             + оцифровка (с учётом минималки) + изделие со стабилизатором и плёнкой.
-// Время машины = стежки / скорость + смены цвета; оно же база для оператора и амортизации.
-let embDefaults = { rate: 20, thread: 0, speed: 600, colorMin: 0, operator: 0, machineHour: 0, digitizing: 500, backing: 0, minCost: 0 };
+//             + разработка дизайна (если отмечено) с учётом минималки + изделие со стабилизатором и плёнкой.
+let embDefaults = { rate: 20, thread: 0, operator: 0, machineHour: 0, digitizing: 500, backing: 0, minCost: 0 };
 const emb = {
-  name: "", qty: 1, stitches: 0, colors: 1, garment: 0,
-  rate: null, thread: null, speed: null, colorMin: null, operator: null, machineHour: null,
-  digitizing: null, backing: null, minCost: null
+  name: "", qty: 1, stitches: 0, machineMin: 0, operatorMin: 0, design: false, garment: 0,
+  rate: null, thread: null, operator: null, machineHour: null, digitizing: null, backing: null, minCost: null
 };
 
 function embVal(key) {
@@ -996,16 +995,13 @@ function embVal(key) {
 function embCalc() {
   const qty = Math.max(1, Math.floor(Number(emb.qty)) || 1);
   const stitches = Number(emb.stitches) || 0;
-  const colorChanges = Math.max(0, (Math.floor(Number(emb.colors)) || 1) - 1);
-  const speed = embVal("speed");
-  // время работы машины, минут: сами стежки + смены цвета на каждое изделие
-  const minutes = (speed > 0 ? stitches * qty / speed : 0) + colorChanges * qty * embVal("colorMin");
-  const hours = minutes / 60;
+  const machineMinutes = (Number(emb.machineMin) || 0) * qty;
+  const operatorMinutes = (Number(emb.operatorMin) || 0) * qty;
   const stitchSum = stitches / 1000 * embVal("rate") * qty;
   const threadSum = stitches / 1000 * embVal("thread") * qty;
-  const operatorSum = hours * embVal("operator");
-  const machineSum = hours * embVal("machineHour");
-  const digitizing = embVal("digitizing");
+  const operatorSum = operatorMinutes / 60 * embVal("operator");
+  const machineSum = machineMinutes / 60 * embVal("machineHour");
+  const digitizing = emb.design ? embVal("digitizing") : 0;
   const workRaw = stitchSum + threadSum + operatorSum + machineSum + digitizing;
   const minCost = embVal("minCost");
   const topUp = (minCost && workRaw < minCost && workRaw > 0) ? (minCost - workRaw) : 0;
@@ -1013,7 +1009,7 @@ function embCalc() {
   const goodsPerPiece = (Number(emb.garment) || 0) + embVal("backing");
   const goods = goodsPerPiece * qty;
   const total = work + goods;
-  return { qty, stitches, colorChanges, minutes, hours, stitchSum, threadSum, operatorSum, machineSum, digitizing, topUp, work, goodsPerPiece, goods, total };
+  return { qty, stitches, machineMinutes, operatorMinutes, stitchSum, threadSum, operatorSum, machineSum, digitizing, topUp, work, goodsPerPiece, goods, total };
 }
 
 function embFmtTime(minutes) {
@@ -1030,9 +1026,9 @@ function embPayload() {
   };
   addOp(`Вышивка ${r.stitches} стежков (${embVal("rate")} руб/1000)`, r.stitchSum);
   addOp("Нитки", r.threadSum);
-  addOp(`Работа оператора (${embFmtTime(r.minutes)})`, r.operatorSum);
-  addOp(`Амортизация и электричество (${embFmtTime(r.minutes)})`, r.machineSum);
-  addOp("Оцифровка (программа вышивки)", r.digitizing);
+  addOp(`Работа оператора (${embFmtTime(r.operatorMinutes)})`, r.operatorSum);
+  addOp(`Амортизация и электричество (машина ${embFmtTime(r.machineMinutes)})`, r.machineSum);
+  addOp("Разработка дизайна (оцифровка)", r.digitizing);
   addOp("Доплата до минимальной стоимости", r.topUp);
   const componentSum = r.goods + ops.reduce((a, o) => a + o.sum, 0);
   return {
@@ -1046,10 +1042,13 @@ function embPayload() {
     }],
     total: r.total,
     embroidery: {
-      stitches: r.stitches, colors: Number(emb.colors) || 1, machine_minutes: Math.round(r.minutes * 10) / 10,
-      rate_per_1000: embVal("rate"), thread_per_1000: embVal("thread"), speed_spm: embVal("speed"),
-      color_change_min: embVal("colorMin"), operator_per_hour: embVal("operator"), machine_per_hour: embVal("machineHour"),
-      digitizing: r.digitizing, garment: Number(emb.garment) || 0, backing: embVal("backing"), min_cost: embVal("minCost")
+      stitches: r.stitches,
+      machine_minutes_per_piece: Number(emb.machineMin) || 0,
+      operator_minutes_per_piece: Number(emb.operatorMin) || 0,
+      design_developed: !!emb.design,
+      rate_per_1000: embVal("rate"), thread_per_1000: embVal("thread"),
+      operator_per_hour: embVal("operator"), machine_per_hour: embVal("machineHour"),
+      digitizing: embVal("digitizing"), garment: Number(emb.garment) || 0, backing: embVal("backing"), min_cost: embVal("minCost")
     }
   };
 }
@@ -1058,12 +1057,12 @@ function embResultHtml() {
   const r = embCalc();
   const f = (v) => (Math.round(v * 100) / 100).toLocaleString("ru-RU");
   const line = (label, v) => `<div style="display:flex; justify-content:space-between; gap:8px; font-size:13px; padding:2px 0;"><span>${label}</span><span>${f(v)} руб.</span></div>`;
-  let h = `<div class="hint" style="margin:0 0 6px;">Время работы машины: ${embFmtTime(r.minutes)}</div>`;
+  let h = `<div class="hint" style="margin:0 0 6px;">На весь тираж: машина ${embFmtTime(r.machineMinutes)}, оператор ${embFmtTime(r.operatorMinutes)}</div>`;
   h += line(`Вышивка: ${r.stitches} стеж. × ${r.qty} шт`, r.stitchSum);
   if (r.threadSum > 0) h += line("Нитки", r.threadSum);
   if (r.operatorSum > 0) h += line("Работа оператора", r.operatorSum);
   if (r.machineSum > 0) h += line("Амортизация и электричество", r.machineSum);
-  if (r.digitizing > 0) h += line("Оцифровка (разово)", r.digitizing);
+  if (r.digitizing > 0) h += line("Разработка дизайна (оцифровка)", r.digitizing);
   if (r.topUp > 0) h += line("Доплата до минимальной стоимости", r.topUp);
   if (r.goods > 0) h += line("Изделие, стабилизатор и плёнка", r.goods);
   h += `<div class="total" style="justify-content:flex-start; gap:8px; margin-top:8px;"><span>Итого:</span><span>${f(r.total)} руб.</span></div>`;
@@ -1087,26 +1086,28 @@ function renderEmbroidery(app) {
     <h1>Машинная вышивка</h1>
     <label>Название заказа</label>
     <input type="text" id="emb_name" placeholder="Например: Логотип на поло" value="${emb.name.replace(/"/g, "&quot;")}">
-    ${row(field("qty", "Тираж, шт", "qty", "1"), field("stitches", "Стежков на 1 изд.", "stitches", "1"), field("colors", "Цветов нити", "colors", "1"))}
-    <div class="hint" style="margin-top:12px;">Работа по стежкам и нитки (пустое поле — значение из справочника):</div>
-    ${row(field("rate", "Цена за 1000 стежков, руб.", "rate"), field("thread", "Нитки, руб. за 1000 стежков", "thread"))}
-    <div class="hint" style="margin-top:12px;">Время работы машины:</div>
-    ${row(field("speed", "Скорость, стежков/мин", "speed"), field("colorMin", "Смена цвета, мин", "colorMin"))}
-    <div class="hint" style="margin-top:12px;">Стоимость часа работы машины:</div>
-    ${row(field("operator", "Работа оператора, руб./ч", "operator"), field("machineHour", "Амортизация и электричество, руб./ч", "machineHour"))}
-    <div class="hint" style="margin-top:12px;">Разовые и минимальные:</div>
-    ${row(field("digitizing", "Оцифровка, руб. (разово)", "digitizing"), field("minCost", "Мин. стоимость работ, руб.", "minCost"))}
+    ${row(field("qty", "Тираж, шт", "qty", "1"), field("stitches", "Стежков на 1 изд.", "stitches", "1"))}
+    ${row(field("machineMin", "Время машины на 1 изд., мин", "machineMin"), field("operatorMin", "Время оператора на 1 изд., мин", "operatorMin"))}
+    <label style="display:flex; align-items:center; gap:8px; margin-top:12px; font-size:14px;">
+      <input type="checkbox" id="emb_design" style="width:auto; margin:0;" ${emb.design ? "checked" : ""}>
+      Дизайн разрабатывался (добавить оцифровку)
+    </label>
     <div class="hint" style="margin-top:12px;">Изделие и материалы (на 1 шт):</div>
     ${row(field("garment", "Изделие, руб.", "garment"), field("backing", "Стабилизатор + плёнка, руб.", "backing"))}
+    <div class="hint" style="margin-top:12px;">Тарифы (пустое поле — значение из справочника):</div>
+    ${row(field("rate", "Цена за 1000 стежков, руб.", "rate"), field("thread", "Нитки, руб. за 1000 стежков", "thread"))}
+    ${row(field("operator", "Работа оператора, руб./ч", "operator"), field("machineHour", "Амортизация и электричество, руб./ч", "machineHour"))}
+    ${row(field("digitizing", "Разработка дизайна, руб.", "digitizing"), field("minCost", "Мин. стоимость работ, руб.", "minCost"))}
     <div class="summary-line" id="embResult" style="display:block; margin-top:14px;"></div>
     ${actionHtml}
     ${tg_ ? "" : `<div class="hint" style="margin-top:8px;">Страница открыта не в Telegram — расчёт можно скачать файлом.</div>`}
   `;
   const upd = () => { document.getElementById("embResult").innerHTML = embResultHtml(); };
   document.getElementById("emb_name").oninput = (e) => { emb.name = e.target.value; };
-  ["qty", "stitches", "colors", "rate", "thread", "speed", "colorMin", "operator", "machineHour", "digitizing", "minCost", "garment", "backing"].forEach((key) => {
+  document.getElementById("emb_design").onchange = (e) => { emb.design = e.target.checked; upd(); };
+  ["qty", "stitches", "machineMin", "operatorMin", "rate", "thread", "operator", "machineHour", "digitizing", "minCost", "garment", "backing"].forEach((key) => {
     document.getElementById("emb_" + key).oninput = (e) => {
-      emb[key] = e.target.value === "" ? (key === "qty" || key === "colors" ? 1 : (key in embDefaults ? null : 0)) : e.target.value;
+      emb[key] = e.target.value === "" ? (key === "qty" ? 1 : (key in embDefaults ? null : 0)) : e.target.value;
       upd();
     };
   });

@@ -139,6 +139,7 @@
   <button class="tab" id="tab-op">Операции</button>
   <button class="tab" id="tab-link">Материал → Операции</button>
   <button class="tab" id="tab-tpl">Шаблоны заказов</button>
+  <button class="tab" id="tab-emb">Вышивка</button>
 </div>
 
 <!-- МАТЕРИАЛЫ -->
@@ -190,7 +191,7 @@
         <th style="width:100px">Режим</th>
         <th style="width:100px">Себестоимость</th>
         <th style="width:80px">Наценка, %</th>
-        <th style="width:100px">Тариф (продажа)</th>
+        <th style="width:110px">Тариф (продажа), можно править</th>
         <th style="width:120px">Мин. стоимость операции</th>
         <th style="width:110px">Приладка (по умолч.)</th>
         <th style="width:90px"></th>
@@ -266,25 +267,53 @@
   <div class="status" id="statusTpl"></div>
 </div>
 
+<!-- ВЫШИВКА -->
+<div class="section" id="section-emb">
+  <div class="hint" style="margin-top:0;">
+    Тарифы по умолчанию для калькулятора машинной вышивки. В калькуляторе любое значение можно поменять
+    для конкретного заказа, а пустое поле берёт значение отсюда. Количество стежков, время машины и время
+    оператора вводятся прямо в калькуляторе. Чтобы не считать работу машины дважды,
+    заполняйте либо цену за 1000 стежков, либо почасовые ставки (оператор и амортизация), либо оба,
+    если цена за 1000 стежков у вас идёт сверху как наценка.
+  </div>
+
+  <div class="file-row">
+    <label>Существующий embroidery.json (необязательно): <input type="file" id="fileInputEmb" accept=".json"></label>
+  </div>
+
+  <table style="max-width:640px;">
+    <thead>
+      <tr>
+        <th style="width:330px">Параметр</th>
+        <th style="width:140px">Значение</th>
+        <th style="width:160px">Единица</th>
+      </tr>
+    </thead>
+    <tbody id="rowsEmb"></tbody>
+  </table>
+
+  <div class="actions">
+    <button id="downloadEmb">Скачать embroidery.json</button>
+  </div>
+  <div class="status" id="statusEmb"></div>
+</div>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 let matData = [];
 let opData = [];
 
 function setTab(t) {
-  document.getElementById("tab-mat").classList.toggle("active", t === "mat");
-  document.getElementById("tab-op").classList.toggle("active", t === "op");
-  document.getElementById("tab-link").classList.toggle("active", t === "link");
-  document.getElementById("tab-tpl").classList.toggle("active", t === "tpl");
-  document.getElementById("section-mat").classList.toggle("active", t === "mat");
-  document.getElementById("section-op").classList.toggle("active", t === "op");
-  document.getElementById("section-link").classList.toggle("active", t === "link");
-  document.getElementById("section-tpl").classList.toggle("active", t === "tpl");
+  ["mat", "op", "link", "tpl", "emb"].forEach((name) => {
+    document.getElementById("tab-" + name).classList.toggle("active", t === name);
+    document.getElementById("section-" + name).classList.toggle("active", t === name);
+  });
 }
 document.getElementById("tab-mat").onclick = () => setTab("mat");
 document.getElementById("tab-op").onclick = () => setTab("op");
 document.getElementById("tab-link").onclick = () => setTab("link");
 document.getElementById("tab-tpl").onclick = () => setTab("tpl");
+document.getElementById("tab-emb").onclick = () => setTab("emb");
 
 // ---------- Материалы ----------
 
@@ -499,7 +528,20 @@ function opSellRate(item) {
 }
 
 function updateOpComputedRow(i) {
-  document.getElementById("opRate" + i).textContent = opSellRate(opData[i]).toFixed(2);
+  // тариф пересчитывается от себестоимости и наценки
+  document.getElementById("opRate" + i).value = opSellRate(opData[i]).toFixed(2);
+}
+
+function setOpRateDirect(i, value) {
+  // тариф правится напрямую: себестоимость подбирается так, чтобы при текущей наценке
+  // получился именно этот тариф — модель остаётся согласованной (себестоимость × наценка = тариф)
+  const tariff = parseFloat(value);
+  if (isNaN(tariff) || tariff < 0) return;
+  const percent = parseFloat(opData[i].markup_percent);
+  const factor = 1 + (isNaN(percent) ? 0 : percent) / 100;
+  opData[i].cost = factor > 0 ? Math.round(tariff / factor * 10000) / 10000 : tariff;
+  const costEl = document.getElementById("opCost" + i);
+  if (costEl) costEl.value = opData[i].cost;
 }
 
 function renderOp() {
@@ -531,6 +573,7 @@ function renderOp() {
     const costInput = document.createElement("input");
     costInput.type = "number";
     costInput.step = "0.01";
+    costInput.id = "opCost" + i;
     costInput.value = item.cost ?? 0;
     costInput.oninput = (e) => { opData[i].cost = e.target.value; updateOpComputedRow(i); };
     costTd.appendChild(costInput);
@@ -543,9 +586,15 @@ function renderOp() {
     markupTd.appendChild(markupInput);
 
     const rateTd = document.createElement("td");
-    rateTd.className = "computed";
-    rateTd.id = "opRate" + i;
-    rateTd.textContent = opSellRate(item).toFixed(2);
+    const rateInput = document.createElement("input");
+    rateInput.type = "number";
+    rateInput.step = "0.01";
+    rateInput.min = "0";
+    rateInput.id = "opRate" + i;
+    rateInput.value = opSellRate(item).toFixed(2);
+    rateInput.title = "Можно править напрямую: себестоимость пересчитается при текущей наценке";
+    rateInput.oninput = (e) => { setOpRateDirect(i, e.target.value); };
+    rateTd.appendChild(rateInput);
 
     const minCostTd = document.createElement("td");
     const minCostInput = document.createElement("input");
@@ -606,15 +655,25 @@ document.getElementById("fileInputOp").addEventListener("change", (e) => {
       // Файл operations.json хранит только name/mode/rate — при загрузке кладём rate
       // как ранее сохранённый тариф (на случай, если себестоимость ещё не заполнена),
       // себестоимость/наценку оставляем пустыми для донаполнения, если их раньше не было
-      opData = parsed.map(p => ({
-        name: p.name || "",
-        mode: p.mode || "pc",
-        cost: p.cost !== undefined ? p.cost : "",
-        markup_percent: p.markup_percent !== undefined ? p.markup_percent : 0,
-        min_cost: p.min_cost !== undefined ? p.min_cost : 0,
-        setup_cost: p.setup_cost !== undefined ? p.setup_cost : 0,
-        _existing_rate: p.rate
-      }));
+      opData = parsed.map(p => {
+        const markup = p.markup_percent !== undefined ? p.markup_percent : 0;
+        let cost = p.cost !== undefined ? p.cost : "";
+        // в старом файле была только цена (rate) — делаем её видимой и редактируемой
+        if ((cost === "" || cost === null) && p.rate !== undefined) {
+          const factor = 1 + (parseFloat(markup) || 0) / 100;
+          const rateNum = parseFloat(p.rate) || 0;
+          cost = factor > 0 ? Math.round(rateNum / factor * 10000) / 10000 : rateNum;
+        }
+        return {
+          name: p.name || "",
+          mode: p.mode || "pc",
+          cost,
+          markup_percent: markup,
+          min_cost: p.min_cost !== undefined ? p.min_cost : 0,
+          setup_cost: p.setup_cost !== undefined ? p.setup_cost : 0,
+          _existing_rate: p.rate
+        };
+      });
       renderOp();
       document.getElementById("statusOp").textContent = `Загружено: ${file.name} (${opData.length} строк)`;
     } catch (err) {
@@ -650,6 +709,77 @@ document.getElementById("downloadOp").onclick = () => {
   URL.revokeObjectURL(url);
   document.getElementById("statusOp").textContent = "Скачан файл: operations.json (с себестоимостью)";
 };
+
+// ---------- Вышивка ----------
+
+const embFields = [
+  ["rate", "Цена за 1000 стежков", "руб."],
+  ["thread", "Нитки (примерно)", "руб. за 1000 стежков"],
+  ["operator", "Работа оператора", "руб./час"],
+  ["machineHour", "Амортизация и электричество", "руб./час"],
+  ["digitizing", "Разработка дизайна / оцифровка (если отмечено в калькуляторе)", "руб."],
+  ["backing", "Стабилизатор + водорастворимая плёнка", "руб. на 1 шт"],
+  ["minCost", "Минимальная стоимость работ", "руб."]
+];
+let embData = { rate: 20, thread: 0, operator: 0, machineHour: 0, digitizing: 500, backing: 0, minCost: 0 };
+
+function renderEmb() {
+  const tbody = document.getElementById("rowsEmb");
+  tbody.innerHTML = "";
+  embFields.forEach(([key, label, unit]) => {
+    const tr = document.createElement("tr");
+    const nameTd = document.createElement("td");
+    nameTd.textContent = label;
+    const valTd = document.createElement("td");
+    const input = document.createElement("input");
+    input.type = "number";
+    input.step = "0.01";
+    input.min = "0";
+    input.value = embData[key];
+    input.oninput = (e) => { embData[key] = e.target.value; };
+    valTd.appendChild(input);
+    const unitTd = document.createElement("td");
+    unitTd.textContent = unit;
+    unitTd.style.color = "#888";
+    tr.appendChild(nameTd);
+    tr.appendChild(valTd);
+    tr.appendChild(unitTd);
+    tbody.appendChild(tr);
+  });
+}
+
+document.getElementById("fileInputEmb").addEventListener("change", (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (evt) => {
+    try {
+      const parsed = JSON.parse(evt.target.result);
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error("not object");
+      embFields.forEach(([key]) => { if (parsed[key] !== undefined) embData[key] = parsed[key]; });
+      renderEmb();
+      document.getElementById("statusEmb").textContent = `Загружено: ${file.name}`;
+    } catch (err) {
+      document.getElementById("statusEmb").textContent = "Не удалось прочитать файл: это не корректный JSON.";
+    }
+  };
+  reader.readAsText(file, "utf-8");
+});
+
+document.getElementById("downloadEmb").onclick = () => {
+  const out = {};
+  embFields.forEach(([key]) => { out[key] = parseFloat(embData[key]) || 0; });
+  const blob = new Blob([JSON.stringify(out, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "embroidery.json";
+  a.click();
+  URL.revokeObjectURL(url);
+  document.getElementById("statusEmb").textContent = "Скачан файл: embroidery.json";
+};
+
+renderEmb();
 
 // ---------- Материал -> Операции ----------
 
