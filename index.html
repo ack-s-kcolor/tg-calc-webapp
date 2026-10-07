@@ -261,7 +261,7 @@ function proceedAfterMaterialSetup() {
 }
 
 const state = {
-  step: "product",
+  step: "home",
   product: { name: "", qty: 1, multi: null },
   components: [],
   draft: { material: null, height: 0, width: 0, qty: 1, ops: [] },
@@ -464,6 +464,23 @@ function renderInner() {
   backBtn.onclick = goBack;
 
   document.getElementById("summaryBar").innerHTML = summaryHtml();
+
+  if (state.step === "home") {
+    app.innerHTML = `
+      <h1>Калькулятор K-Color</h1>
+      <div class="hint">Выберите, что считаем:</div>
+      <button class="btn btn-primary" id="goOrder">Калькулятор заказа</button>
+      <button class="btn" id="goEmb" style="margin-top:8px;">Машинная вышивка</button>
+    `;
+    document.getElementById("goOrder").onclick = () => goToStep("product");
+    document.getElementById("goEmb").onclick = () => goToStep("embroidery");
+    return;
+  }
+
+  if (state.step === "embroidery") {
+    renderEmbroidery(app);
+    return;
+  }
 
   if (state.step === "product") {
     const tplHtml = templates.length > 0
@@ -959,6 +976,158 @@ function renderInner() {
   }
 }
 
+
+// ---------- Калькулятор машинной вышивки ----------
+// Стоимость = работа по стежкам + нитки + оператор + амортизация/электричество
+//             + оцифровка (с учётом минималки) + изделие со стабилизатором и плёнкой.
+// Время машины = стежки / скорость + смены цвета; оно же база для оператора и амортизации.
+let embDefaults = { rate: 20, thread: 0, speed: 600, colorMin: 0, operator: 0, machineHour: 0, digitizing: 500, backing: 0, minCost: 0 };
+const emb = {
+  name: "", qty: 1, stitches: 0, colors: 1, garment: 0,
+  rate: null, thread: null, speed: null, colorMin: null, operator: null, machineHour: null,
+  digitizing: null, backing: null, minCost: null
+};
+
+function embVal(key) {
+  // пустое значение берётся из справочника embroidery.json
+  return (emb[key] === null || emb[key] === "") ? (Number(embDefaults[key]) || 0) : (Number(emb[key]) || 0);
+}
+
+function embCalc() {
+  const qty = Math.max(1, Math.floor(Number(emb.qty)) || 1);
+  const stitches = Number(emb.stitches) || 0;
+  const colorChanges = Math.max(0, (Math.floor(Number(emb.colors)) || 1) - 1);
+  const speed = embVal("speed");
+  // время работы машины, минут: сами стежки + смены цвета на каждое изделие
+  const minutes = (speed > 0 ? stitches * qty / speed : 0) + colorChanges * qty * embVal("colorMin");
+  const hours = minutes / 60;
+  const stitchSum = stitches / 1000 * embVal("rate") * qty;
+  const threadSum = stitches / 1000 * embVal("thread") * qty;
+  const operatorSum = hours * embVal("operator");
+  const machineSum = hours * embVal("machineHour");
+  const digitizing = embVal("digitizing");
+  const workRaw = stitchSum + threadSum + operatorSum + machineSum + digitizing;
+  const minCost = embVal("minCost");
+  const topUp = (minCost && workRaw < minCost && workRaw > 0) ? (minCost - workRaw) : 0;
+  const work = workRaw + topUp;
+  const goodsPerPiece = (Number(emb.garment) || 0) + embVal("backing");
+  const goods = goodsPerPiece * qty;
+  const total = work + goods;
+  return { qty, stitches, colorChanges, minutes, hours, stitchSum, threadSum, operatorSum, machineSum, digitizing, topUp, work, goodsPerPiece, goods, total };
+}
+
+function embFmtTime(minutes) {
+  const m = Math.round(minutes);
+  const h = Math.floor(m / 60);
+  return h > 0 ? `${h} ч ${m % 60} мин` : `${m} мин`;
+}
+
+function embPayload() {
+  const r = embCalc();
+  const ops = [];
+  const addOp = (name, sum) => {
+    if (sum > 0) ops.push({ name, mode: "pc", rate: sum / r.qty, length_m: 0, setup_cost: 0, grommet_count: 0, spacing_cm: 30, min_cost: 0, sum });
+  };
+  addOp(`Вышивка ${r.stitches} стежков (${embVal("rate")} руб/1000)`, r.stitchSum);
+  addOp("Нитки", r.threadSum);
+  addOp(`Работа оператора (${embFmtTime(r.minutes)})`, r.operatorSum);
+  addOp(`Амортизация и электричество (${embFmtTime(r.minutes)})`, r.machineSum);
+  addOp("Оцифровка (программа вышивки)", r.digitizing);
+  addOp("Доплата до минимальной стоимости", r.topUp);
+  const componentSum = r.goods + ops.reduce((a, o) => a + o.sum, 0);
+  return {
+    product: { name: emb.name.trim() || "Машинная вышивка", qty: r.qty, multi: false },
+    components: [{
+      material: { name: "Изделие, стабилизатор и плёнка", mode: "pc", rate: r.goodsPerPiece },
+      height_mm: 0, width_mm: 0, qty: 1, qty_per_unit: 1, material_length_m: 0,
+      material_sum: r.goods,
+      operations: ops,
+      component_sum: componentSum
+    }],
+    total: r.total,
+    embroidery: {
+      stitches: r.stitches, colors: Number(emb.colors) || 1, machine_minutes: Math.round(r.minutes * 10) / 10,
+      rate_per_1000: embVal("rate"), thread_per_1000: embVal("thread"), speed_spm: embVal("speed"),
+      color_change_min: embVal("colorMin"), operator_per_hour: embVal("operator"), machine_per_hour: embVal("machineHour"),
+      digitizing: r.digitizing, garment: Number(emb.garment) || 0, backing: embVal("backing"), min_cost: embVal("minCost")
+    }
+  };
+}
+
+function embResultHtml() {
+  const r = embCalc();
+  const f = (v) => (Math.round(v * 100) / 100).toLocaleString("ru-RU");
+  const line = (label, v) => `<div style="display:flex; justify-content:space-between; gap:8px; font-size:13px; padding:2px 0;"><span>${label}</span><span>${f(v)} руб.</span></div>`;
+  let h = `<div class="hint" style="margin:0 0 6px;">Время работы машины: ${embFmtTime(r.minutes)}</div>`;
+  h += line(`Вышивка: ${r.stitches} стеж. × ${r.qty} шт`, r.stitchSum);
+  if (r.threadSum > 0) h += line("Нитки", r.threadSum);
+  if (r.operatorSum > 0) h += line("Работа оператора", r.operatorSum);
+  if (r.machineSum > 0) h += line("Амортизация и электричество", r.machineSum);
+  if (r.digitizing > 0) h += line("Оцифровка (разово)", r.digitizing);
+  if (r.topUp > 0) h += line("Доплата до минимальной стоимости", r.topUp);
+  if (r.goods > 0) h += line("Изделие, стабилизатор и плёнка", r.goods);
+  h += `<div class="total" style="justify-content:flex-start; gap:8px; margin-top:8px;"><span>Итого:</span><span>${f(r.total)} руб.</span></div>`;
+  h += `<div class="hint">За 1 шт: ${f(r.total / r.qty)} руб.</div>`;
+  return h;
+}
+
+function renderEmbroidery(app) {
+  const field = (id, label, key, step) => `
+    <div style="flex:1; min-width:0;">
+      <label style="font-size:12px;">${label}</label>
+      <input type="number" id="emb_${id}" step="${step || "any"}" min="0" inputmode="decimal" value="${emb[key] === null ? "" : emb[key]}" placeholder="${key in embDefaults ? embDefaults[key] : ""}">
+    </div>`;
+  const row = (...cells) => `<div style="display:flex; gap:8px;">${cells.join("")}</div>`;
+  const tg_ = !!tg;
+  const actionHtml = tg_
+    ? `<button class="btn btn-primary" id="embSend">Отправить расчёт в чат</button>`
+    : `<button class="btn btn-primary" id="embSend">Скачать JSON расчёта</button>
+       <button class="btn secondary" id="embXlsx" style="margin-top:6px;">Скачать Excel</button>`;
+  app.innerHTML = `
+    <h1>Машинная вышивка</h1>
+    <label>Название заказа</label>
+    <input type="text" id="emb_name" placeholder="Например: Логотип на поло" value="${emb.name.replace(/"/g, "&quot;")}">
+    ${row(field("qty", "Тираж, шт", "qty", "1"), field("stitches", "Стежков на 1 изд.", "stitches", "1"), field("colors", "Цветов нити", "colors", "1"))}
+    <div class="hint" style="margin-top:12px;">Работа по стежкам и нитки (пустое поле — значение из справочника):</div>
+    ${row(field("rate", "Цена за 1000 стежков, руб.", "rate"), field("thread", "Нитки, руб. за 1000 стежков", "thread"))}
+    <div class="hint" style="margin-top:12px;">Время работы машины:</div>
+    ${row(field("speed", "Скорость, стежков/мин", "speed"), field("colorMin", "Смена цвета, мин", "colorMin"))}
+    <div class="hint" style="margin-top:12px;">Стоимость часа работы машины:</div>
+    ${row(field("operator", "Работа оператора, руб./ч", "operator"), field("machineHour", "Амортизация и электричество, руб./ч", "machineHour"))}
+    <div class="hint" style="margin-top:12px;">Разовые и минимальные:</div>
+    ${row(field("digitizing", "Оцифровка, руб. (разово)", "digitizing"), field("minCost", "Мин. стоимость работ, руб.", "minCost"))}
+    <div class="hint" style="margin-top:12px;">Изделие и материалы (на 1 шт):</div>
+    ${row(field("garment", "Изделие, руб.", "garment"), field("backing", "Стабилизатор + плёнка, руб.", "backing"))}
+    <div class="summary-line" id="embResult" style="display:block; margin-top:14px;"></div>
+    ${actionHtml}
+    ${tg_ ? "" : `<div class="hint" style="margin-top:8px;">Страница открыта не в Telegram — расчёт можно скачать файлом.</div>`}
+  `;
+  const upd = () => { document.getElementById("embResult").innerHTML = embResultHtml(); };
+  document.getElementById("emb_name").oninput = (e) => { emb.name = e.target.value; };
+  ["qty", "stitches", "colors", "rate", "thread", "speed", "colorMin", "operator", "machineHour", "digitizing", "minCost", "garment", "backing"].forEach((key) => {
+    document.getElementById("emb_" + key).oninput = (e) => {
+      emb[key] = e.target.value === "" ? (key === "qty" || key === "colors" ? 1 : (key in embDefaults ? null : 0)) : e.target.value;
+      upd();
+    };
+  });
+  document.getElementById("embSend").onclick = () => {
+    const payload = embPayload();
+    if (tg) {
+      tg.sendData(JSON.stringify(payload));
+      tg.close();
+    } else {
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = "embroidery.json"; a.click();
+      URL.revokeObjectURL(url);
+    }
+  };
+  const x = document.getElementById("embXlsx");
+  if (x) x.onclick = () => downloadXlsx(embPayload());
+  upd();
+}
+
 function render() {
   try {
     renderInner();
@@ -1194,8 +1363,12 @@ Promise.all([
   fetch("materials.json?v=" + Date.now(), { cache: "no-store" }).then(r => r.json()),
   fetch("operations.json?v=" + Date.now(), { cache: "no-store" }).then(r => r.json()),
   fetchJsonSafe("material_operations.json?v=" + Date.now(), []),
-  fetchJsonSafe("templates.json?v=" + Date.now(), [])
-]).then(([m, o, link, tpl]) => {
+  fetchJsonSafe("templates.json?v=" + Date.now(), []),
+  fetchJsonSafe("embroidery.json?v=" + Date.now(), {})
+]).then(([m, o, link, tpl, embCfg]) => {
+  if (embCfg && typeof embCfg === "object") {
+    Object.keys(embDefaults).forEach(k => { if (embCfg[k] !== undefined) embDefaults[k] = Number(embCfg[k]) || 0; });
+  }
   materials = m;
   operations = o;
   materialOperationsMap = {};
