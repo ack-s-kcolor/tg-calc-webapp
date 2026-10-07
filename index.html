@@ -190,6 +190,26 @@
     border-top: 1px solid var(--tg-theme-hint-color, #cccccc);
     margin-top: 8px;
   }
+
+  /* экран «Машинная вышивка»: две колонки на широком экране, компактные поля */
+  .emb-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; align-items: start; }
+  @media (min-width: 760px) {
+    .emb-layout { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px; }
+    .emb-result { position: sticky; top: 64px; }
+  }
+  .emb-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 6px 8px; }
+  .emb-grid .full { grid-column: 1 / -1; }
+  .emb-grid > div { display: flex; flex-direction: column; justify-content: flex-end; }
+  .emb-layout input[type=text], .emb-layout input[type=number] {
+    padding: 6px 9px; font-size: 14px; border-radius: 8px; margin-bottom: 0;
+  }
+  .emb-layout label { font-size: 11px; margin-bottom: 2px; color: var(--tg-theme-hint-color, #8a8a8a); }
+  .emb-layout .emb-check { display: flex; align-items: center; gap: 8px; font-size: 13px; margin: 0; color: var(--tg-theme-text-color, #000000); align-self: end; padding-bottom: 7px; }
+  .emb-layout .emb-check input { width: auto; margin: 0; }
+  .emb-layout input.emb-changed { border-color: #2481cc; box-shadow: 0 0 0 1px #2481cc; background: var(--tg-theme-bg-color, #ffffff); }
+  .emb-section { font-size: 11px; font-weight: 600; color: var(--tg-theme-hint-color, #8a8a8a); margin: 12px 0 4px; }
+  .emb-section:first-of-type { margin-top: 0; }
+  .emb-result .summary-line { margin-top: 0; }
 </style>
 </head>
 <body>
@@ -1114,12 +1134,17 @@ function embResultHtml() {
 }
 
 function renderEmbroidery(app) {
-  const field = (id, label, key, step) => `
-    <div style="flex:1; min-width:0;">
-      <label style="font-size:12px;">${label}</label>
-      <input type="number" id="emb_${id}" step="${step || "any"}" min="0" inputmode="decimal" value="${emb[key] === null ? "" : emb[key]}" placeholder="${key in embDefaults ? embDefaults[key] : ""}">
+  const field = (id, label, key, step, extra) => {
+    // тарифы показываем реальным значением (из справочника или введённым), а не серой подсказкой
+    const isTariff = key in embDefaults;
+    const val = isTariff ? (emb[key] === null ? embDefaults[key] : emb[key]) : (emb[key] === null ? "" : emb[key]);
+    const changed = isTariff && emb[key] !== null && Number(emb[key]) !== Number(embDefaults[key]);
+    return `
+    <div${extra ? ` class="${extra}"` : ""}>
+      <label>${label}</label>
+      <input type="number" id="emb_${id}" class="${changed ? "emb-changed" : ""}" step="${step || "any"}" min="0" inputmode="decimal" value="${val}">
     </div>`;
-  const row = (...cells) => `<div style="display:flex; gap:8px;">${cells.join("")}</div>`;
+  };
   const tg_ = !!tg;
   const actionHtml = tg_
     ? `<button class="btn btn-primary" id="embSend">Отправить расчёт в чат</button>`
@@ -1127,24 +1152,45 @@ function renderEmbroidery(app) {
        <button class="btn secondary" id="embXlsx" style="margin-top:6px;">Скачать Excel</button>`;
   app.innerHTML = `
     <h1>Машинная вышивка</h1>
-    <label>Название заказа</label>
-    <input type="text" id="emb_name" placeholder="Например: Логотип на поло" value="${emb.name.replace(/"/g, "&quot;")}">
-    ${row(field("qty", "Тираж, шт", "qty", "1"), field("stitches", "Стежков на 1 изд.", "stitches", "1"))}
-    ${row(field("machineMin", "Время машины на 1 изд., мин", "machineMin"), field("operatorMin", "Время оператора на 1 изд., мин", "operatorMin"))}
-    <label style="display:flex; align-items:center; gap:8px; margin-top:12px; font-size:14px;">
-      <input type="checkbox" id="emb_design" style="width:auto; margin:0;" ${emb.design ? "checked" : ""}>
-      Дизайн разрабатывался (добавить оцифровку)
-    </label>
-    ${row(field("coef", "Коэффициент тиража (пусто — из справочника)", "coef"))}
-    <div class="hint" style="margin-top:12px;">Изделие и материалы (на 1 шт):</div>
-    ${row(field("garment", "Изделие, руб.", "garment"), field("backing", "Стабилизатор + плёнка, руб.", "backing"))}
-    <div class="hint" style="margin-top:12px;">Тарифы (пустое поле — значение из справочника):</div>
-    ${row(field("rate", "Цена за 1000 стежков, руб.", "rate"), field("thread", "Нитки, руб. за 1000 стежков", "thread"))}
-    ${row(field("operator", "Работа оператора, руб./ч", "operator"), field("machineHour", "Стоимость работы машины, руб./ч", "machineHour"))}
-    ${row(field("digitizing", "Разработка дизайна, руб.", "digitizing"), field("minCost", "Мин. стоимость работ, руб.", "minCost"))}
-    <div class="summary-line" id="embResult" style="display:block; margin-top:14px;"></div>
-    ${actionHtml}
-    ${tg_ ? "" : `<div class="hint" style="margin-top:8px;">Страница открыта не в Telegram — расчёт можно скачать файлом.</div>`}
+    <div class="emb-layout">
+      <div class="emb-form">
+        <div class="emb-grid">
+          <div class="full">
+            <label>Название заказа</label>
+            <input type="text" id="emb_name" placeholder="Например: Логотип на поло" value="${emb.name.replace(/"/g, "&quot;")}">
+          </div>
+          ${field("qty", "Тираж, шт", "qty", "1")}
+          ${field("stitches", "Стежков на 1 изд.", "stitches", "1")}
+          ${field("machineMin", "Время машины на 1 изд., мин", "machineMin")}
+          ${field("operatorMin", "Время оператора на 1 изд., мин", "operatorMin")}
+          ${field("coef", "Коэффициент тиража (пусто — из справочника)", "coef")}
+          <label class="emb-check"><input type="checkbox" id="emb_design" ${emb.design ? "checked" : ""}> Дизайн разрабатывался</label>
+        </div>
+        <div class="emb-section">Изделие и материалы (на 1 шт)</div>
+        <div class="emb-grid">
+          ${field("garment", "Изделие, руб.", "garment")}
+          ${field("backing", "Стабилизатор + плёнка, руб.", "backing")}
+        </div>
+        <div class="emb-section" style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
+          <span>Тарифы из справочника — можно менять для этого расчёта</span>
+          <button type="button" class="btn-sm" id="embResetTariffs" style="padding:3px 8px; font-size:11px; font-weight:400;">Сбросить</button>
+        </div>
+        <div class="hint" style="margin:0 0 6px;">Изменённые значения выделены синей рамкой. Постоянно тарифы меняются в редакторе справочников.</div>
+        <div class="emb-grid">
+          ${field("rate", "Цена за 1000 стежков, руб.", "rate")}
+          ${field("thread", "Нитки, руб. за 1000 стежков", "thread")}
+          ${field("operator", "Работа оператора, руб./ч", "operator")}
+          ${field("machineHour", "Стоимость работы машины, руб./ч", "machineHour")}
+          ${field("digitizing", "Разработка дизайна, руб.", "digitizing")}
+          ${field("minCost", "Мин. стоимость работ, руб.", "minCost")}
+        </div>
+      </div>
+      <div class="emb-result">
+        <div class="summary-line" id="embResult" style="display:block;"></div>
+        ${actionHtml}
+        ${tg_ ? "" : `<div class="hint" style="margin-top:8px;">Страница открыта не в Telegram — расчёт можно скачать файлом.</div>`}
+      </div>
+    </div>
   `;
   const upd = () => {
     document.getElementById("embResult").innerHTML = embResultHtml();
@@ -1154,11 +1200,29 @@ function renderEmbroidery(app) {
   document.getElementById("emb_name").oninput = (e) => { emb.name = e.target.value; };
   document.getElementById("emb_design").onchange = (e) => { emb.design = e.target.checked; upd(); };
   ["qty", "stitches", "machineMin", "operatorMin", "coef", "rate", "thread", "operator", "machineHour", "digitizing", "minCost", "garment", "backing"].forEach((key) => {
-    document.getElementById("emb_" + key).oninput = (e) => {
+    const el = document.getElementById("emb_" + key);
+    el.oninput = (e) => {
       emb[key] = e.target.value === "" ? (key === "qty" ? 1 : ((key in embDefaults || key === "coef") ? null : 0)) : e.target.value;
+      if (key in embDefaults) {
+        el.classList.toggle("emb-changed", el.value !== "" && Number(el.value) !== Number(embDefaults[key]));
+      }
       upd();
     };
+    if (key in embDefaults) {
+      // очистили поле — возвращаем значение из справочника
+      el.onchange = () => {
+        if (el.value === "") { emb[key] = null; el.value = embDefaults[key]; el.classList.remove("emb-changed"); upd(); }
+      };
+    }
   });
+  document.getElementById("embResetTariffs").onclick = () => {
+    Object.keys(embDefaults).forEach((k) => {
+      emb[k] = null;
+      const el = document.getElementById("emb_" + k);
+      if (el) { el.value = embDefaults[k]; el.classList.remove("emb-changed"); }
+    });
+    upd();
+  };
   document.getElementById("embSend").onclick = () => {
     const payload = embPayload();
     if (tg) {
