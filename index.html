@@ -979,7 +979,7 @@ function renderInner() {
 
 // ---------- Калькулятор машинной вышивки ----------
 // Вводятся: стежки, время машины и время оператора (мин на 1 изделие), галочка «дизайн разрабатывался».
-// Стоимость = работа по стежкам + нитки + оператор + амортизация/электричество
+// Стоимость = работа по стежкам + нитки + оператор + стоимость работы машины
 //             + разработка дизайна (если отмечено) с учётом минималки + изделие со стабилизатором и плёнкой.
 let embDefaults = { rate: 20, thread: 0, operator: 0, machineHour: 0, digitizing: 500, backing: 0, minCost: 0 };
 const emb = {
@@ -1027,7 +1027,7 @@ function embPayload() {
   addOp(`Вышивка ${r.stitches} стежков (${embVal("rate")} руб/1000)`, r.stitchSum);
   addOp("Нитки", r.threadSum);
   addOp(`Работа оператора (${embFmtTime(r.operatorMinutes)})`, r.operatorSum);
-  addOp(`Амортизация и электричество (машина ${embFmtTime(r.machineMinutes)})`, r.machineSum);
+  addOp(`Работа машины (${embFmtTime(r.machineMinutes)})`, r.machineSum);
   addOp("Разработка дизайна (оцифровка)", r.digitizing);
   addOp("Доплата до минимальной стоимости", r.topUp);
   const componentSum = r.goods + ops.reduce((a, o) => a + o.sum, 0);
@@ -1061,7 +1061,7 @@ function embResultHtml() {
   h += line(`Вышивка: ${r.stitches} стеж. × ${r.qty} шт`, r.stitchSum);
   if (r.threadSum > 0) h += line("Нитки", r.threadSum);
   if (r.operatorSum > 0) h += line("Работа оператора", r.operatorSum);
-  if (r.machineSum > 0) h += line("Амортизация и электричество", r.machineSum);
+  if (r.machineSum > 0) h += line("Работа машины", r.machineSum);
   if (r.digitizing > 0) h += line("Разработка дизайна (оцифровка)", r.digitizing);
   if (r.topUp > 0) h += line("Доплата до минимальной стоимости", r.topUp);
   if (r.goods > 0) h += line("Изделие, стабилизатор и плёнка", r.goods);
@@ -1096,7 +1096,7 @@ function renderEmbroidery(app) {
     ${row(field("garment", "Изделие, руб.", "garment"), field("backing", "Стабилизатор + плёнка, руб.", "backing"))}
     <div class="hint" style="margin-top:12px;">Тарифы (пустое поле — значение из справочника):</div>
     ${row(field("rate", "Цена за 1000 стежков, руб.", "rate"), field("thread", "Нитки, руб. за 1000 стежков", "thread"))}
-    ${row(field("operator", "Работа оператора, руб./ч", "operator"), field("machineHour", "Амортизация и электричество, руб./ч", "machineHour"))}
+    ${row(field("operator", "Работа оператора, руб./ч", "operator"), field("machineHour", "Стоимость работы машины, руб./ч", "machineHour"))}
     ${row(field("digitizing", "Разработка дизайна, руб.", "digitizing"), field("minCost", "Мин. стоимость работ, руб.", "minCost"))}
     <div class="summary-line" id="embResult" style="display:block; margin-top:14px;"></div>
     ${actionHtml}
