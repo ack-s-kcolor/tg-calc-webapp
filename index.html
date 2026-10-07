@@ -991,7 +991,7 @@ function embTierFor(qty) {
 }
 
 const emb = {
-  name: "", qty: 1, stitches: 0, machineMin: 0, operatorMin: 0, design: false, garment: 0,
+  name: "", qty: 1, stitches: 0, machineMin: 0, operatorMin: 0, design: false, garment: 0, coef: null,
   rate: null, thread: null, operator: null, machineHour: null, digitizing: null, backing: null, minCost: null
 };
 
@@ -1005,21 +1005,40 @@ function embCalc() {
   const stitches = Number(emb.stitches) || 0;
   const machineMinutes = (Number(emb.machineMin) || 0) * qty;
   const operatorMinutes = (Number(emb.operatorMin) || 0) * qty;
-  const tier = embTierFor(qty);
-  const coef = Number(tier.coef) || 1;
-  const stitchSum = stitches / 1000 * embVal("rate") * qty * coef;
-  const threadSum = stitches / 1000 * embVal("thread") * qty * coef;
-  const operatorSum = operatorMinutes / 60 * embVal("operator") * coef;
-  const machineSum = machineMinutes / 60 * embVal("machineHour") * coef;
+
+  // себестоимость работ — без коэффициента тиража
+  const costStitch = stitches / 1000 * embVal("rate") * qty;
+  const costThread = stitches / 1000 * embVal("thread") * qty;
+  const costOperator = operatorMinutes / 60 * embVal("operator");
+  const costMachine = machineMinutes / 60 * embVal("machineHour");
+  const costWork = costStitch + costThread + costOperator + costMachine;
   const digitizing = emb.design ? embVal("digitizing") : 0;
-  const workRaw = stitchSum + threadSum + operatorSum + machineSum + digitizing;
+  const goodsPerPiece = (Number(emb.garment) || 0) + embVal("backing");
+  const goods = goodsPerPiece * qty;
+  const costTotal = costWork + digitizing + goods;
+
+  // коэффициент: по умолчанию из справочника по тиражу, можно ввести вручную
+  const autoCoef = Number(embTierFor(qty).coef) || 1;
+  const manual = emb.coef !== null && emb.coef !== "" && Number(emb.coef) > 0;
+  const coef = manual ? Number(emb.coef) : autoCoef;
+
+  // цена для клиента: коэффициент умножает только работы, зависящие от тиража
+  const stitchSum = costStitch * coef;
+  const threadSum = costThread * coef;
+  const operatorSum = costOperator * coef;
+  const machineSum = costMachine * coef;
+  const priceWork = costWork * coef;
+  const workRaw = priceWork + digitizing;
   const minCost = embVal("minCost");
   const topUp = (minCost && workRaw < minCost && workRaw > 0) ? (minCost - workRaw) : 0;
   const work = workRaw + topUp;
-  const goodsPerPiece = (Number(emb.garment) || 0) + embVal("backing");
-  const goods = goodsPerPiece * qty;
   const total = work + goods;
-  return { qty, coef, tier, stitches, machineMinutes, operatorMinutes, stitchSum, threadSum, operatorSum, machineSum, digitizing, topUp, work, goodsPerPiece, goods, total };
+  return {
+    qty, coef, autoCoef, manual, stitches, machineMinutes, operatorMinutes,
+    costStitch, costThread, costOperator, costMachine, costWork, costTotal,
+    stitchSum, threadSum, operatorSum, machineSum, priceWork,
+    digitizing, topUp, work, goodsPerPiece, goods, total, margin: total - costTotal
+  };
 }
 
 function embFmtTime(minutes) {
@@ -1057,6 +1076,9 @@ function embPayload() {
       operator_minutes_per_piece: Number(emb.operatorMin) || 0,
       design_developed: !!emb.design,
       tirage_coefficient: r.coef,
+      tirage_coefficient_manual: r.manual,
+      cost_work: Math.round(r.costWork * 100) / 100,
+      cost_total: Math.round(r.costTotal * 100) / 100,
       rate_per_1000: embVal("rate"), thread_per_1000: embVal("thread"),
       operator_per_hour: embVal("operator"), machine_per_hour: embVal("machineHour"),
       digitizing: embVal("digitizing"), garment: Number(emb.garment) || 0, backing: embVal("backing"), min_cost: embVal("minCost")
@@ -1067,18 +1089,27 @@ function embPayload() {
 function embResultHtml() {
   const r = embCalc();
   const f = (v) => (Math.round(v * 100) / 100).toLocaleString("ru-RU");
-  const line = (label, v) => `<div style="display:flex; justify-content:space-between; gap:8px; font-size:13px; padding:2px 0;"><span>${label}</span><span>${f(v)} руб.</span></div>`;
-  let h = `<div class="hint" style="margin:0 0 6px;">На весь тираж: машина ${embFmtTime(r.machineMinutes)}, оператор ${embFmtTime(r.operatorMinutes)}</div>`;
-  h += `<div class="hint" style="margin:0 0 6px;">Коэффициент тиража: ×${r.coef} (${r.qty} шт)</div>`;
-  h += line(`Вышивка: ${r.stitches} стеж. × ${r.qty} шт`, r.stitchSum);
-  if (r.threadSum > 0) h += line("Нитки", r.threadSum);
-  if (r.operatorSum > 0) h += line("Работа оператора", r.operatorSum);
-  if (r.machineSum > 0) h += line("Работа машины", r.machineSum);
+  const line = (label, v, bold) => `<div style="display:flex; justify-content:space-between; gap:8px; font-size:13px; padding:2px 0;${bold ? " font-weight:600;" : ""}"><span>${label}</span><span>${f(v)} руб.</span></div>`;
+  const title = (t) => `<div class="hint" style="margin:10px 0 4px; font-weight:600;">${t}</div>`;
+
+  let h = `<div class="hint" style="margin:0 0 4px;">На весь тираж: машина ${embFmtTime(r.machineMinutes)}, оператор ${embFmtTime(r.operatorMinutes)}</div>`;
+
+  h += title("Себестоимость");
+  h += line(`Вышивка: ${r.stitches} стеж. × ${r.qty} шт`, r.costStitch);
+  if (r.costThread > 0) h += line("Нитки", r.costThread);
+  if (r.costOperator > 0) h += line("Работа оператора", r.costOperator);
+  if (r.costMachine > 0) h += line("Работа машины", r.costMachine);
+  if (r.digitizing > 0) h += line("Разработка дизайна (оцифровка)", r.digitizing);
+  if (r.goods > 0) h += line("Изделие, стабилизатор и плёнка", r.goods);
+  h += line("Себестоимость итого", r.costTotal, true);
+
+  h += title(`Цена для клиента · коэффициент тиража ×${r.coef}${r.manual ? " (вручную)" : " (из справочника)"}`);
+  h += line(`Работы по себестоимости ${f(r.costWork)} × ${r.coef}`, r.priceWork);
   if (r.digitizing > 0) h += line("Разработка дизайна (оцифровка)", r.digitizing);
   if (r.topUp > 0) h += line("Доплата до минимальной стоимости", r.topUp);
   if (r.goods > 0) h += line("Изделие, стабилизатор и плёнка", r.goods);
   h += `<div class="total" style="justify-content:flex-start; gap:8px; margin-top:8px;"><span>Итого:</span><span>${f(r.total)} руб.</span></div>`;
-  h += `<div class="hint">За 1 шт: ${f(r.total / r.qty)} руб.</div>`;
+  h += `<div class="hint">За 1 шт: ${f(r.total / r.qty)} руб. · Наценка: ${r.margin >= 0 ? "+" : ""}${f(r.margin)} руб.${r.costTotal > 0 ? ` (${Math.round(r.margin / r.costTotal * 100)}% к себестоимости)` : ""}</div>`;
   return h;
 }
 
@@ -1104,6 +1135,7 @@ function renderEmbroidery(app) {
       <input type="checkbox" id="emb_design" style="width:auto; margin:0;" ${emb.design ? "checked" : ""}>
       Дизайн разрабатывался (добавить оцифровку)
     </label>
+    ${row(field("coef", "Коэффициент тиража (пусто — из справочника)", "coef"))}
     <div class="hint" style="margin-top:12px;">Изделие и материалы (на 1 шт):</div>
     ${row(field("garment", "Изделие, руб.", "garment"), field("backing", "Стабилизатор + плёнка, руб.", "backing"))}
     <div class="hint" style="margin-top:12px;">Тарифы (пустое поле — значение из справочника):</div>
@@ -1114,12 +1146,16 @@ function renderEmbroidery(app) {
     ${actionHtml}
     ${tg_ ? "" : `<div class="hint" style="margin-top:8px;">Страница открыта не в Telegram — расчёт можно скачать файлом.</div>`}
   `;
-  const upd = () => { document.getElementById("embResult").innerHTML = embResultHtml(); };
+  const upd = () => {
+    document.getElementById("embResult").innerHTML = embResultHtml();
+    // подсказка в поле коэффициента: что подставится из справочника при текущем тираже
+    document.getElementById("emb_coef").placeholder = "из справочника: ×" + embCalc().autoCoef;
+  };
   document.getElementById("emb_name").oninput = (e) => { emb.name = e.target.value; };
   document.getElementById("emb_design").onchange = (e) => { emb.design = e.target.checked; upd(); };
-  ["qty", "stitches", "machineMin", "operatorMin", "rate", "thread", "operator", "machineHour", "digitizing", "minCost", "garment", "backing"].forEach((key) => {
+  ["qty", "stitches", "machineMin", "operatorMin", "coef", "rate", "thread", "operator", "machineHour", "digitizing", "minCost", "garment", "backing"].forEach((key) => {
     document.getElementById("emb_" + key).oninput = (e) => {
-      emb[key] = e.target.value === "" ? (key === "qty" ? 1 : (key in embDefaults ? null : 0)) : e.target.value;
+      emb[key] = e.target.value === "" ? (key === "qty" ? 1 : ((key in embDefaults || key === "coef") ? null : 0)) : e.target.value;
       upd();
     };
   });
