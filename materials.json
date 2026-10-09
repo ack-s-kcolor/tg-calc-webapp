@@ -430,5 +430,17 @@
     "length_m": "",
     "purchase_total": "200",
     "markup_percent": "0"
+  },
+  {
+    "name": "акрил 10мм модуль",
+    "mode": "sqm",
+    "rate": 13453.27,
+    "supplier": "Мальцева",
+    "link": "",
+    "width_mm": "1000",
+    "height_mm": "1500",
+    "length_m": "",
+    "purchase_total": "10621",
+    "markup_percent": "90"
   }
 ]
