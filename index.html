@@ -1493,6 +1493,9 @@ function renderSt3(app) {
     : `<button class="btn btn-primary" id="st3Send">Скачать JSON расчёта</button>
        <button class="btn secondary" id="st3Xlsx" style="margin-top:6px;">Скачать Excel</button>`;
 
+  const cxOptions = (cur) => st3Complexity.map(([val, name, k]) =>
+    `<option value="${val}" ${cur === val ? "selected" : ""}>${k === null ? name : `${name} — ×${fmtK(k)}`}</option>`).join("");
+
   const itemsHtml = st3.items.map((it, i) => `
     <div class="st3-item">
       <div class="st3-item-head">
@@ -1503,6 +1506,11 @@ function renderSt3(app) {
         ${itemInp(i, "width", "Ширина, мм")}${itemInp(i, "height", "Высота, мм")}
         ${pack ? "" : itemInp(i, "qty", "Количество, шт.", "1")}${itemInp(i, "fill", "Площадь формы от габарита, %")}
       </div>
+      <div style="margin-top:8px;">
+        <label class="st3-lbl">Сложность формы</label>
+        <select class="st3-select" data-cx="${i}">${cxOptions(it.complexity)}</select>
+        ${it.complexity === "custom" ? `<div class="st3-grid2" style="margin-top:6px;">${itemInp(i, "customCoef", "Коэффициент сложности")}</div>` : ""}
+      </div>
       ${out("Фактическая площадь формы", "st3_area_" + i)}
     </div>`).join("");
 
@@ -1511,16 +1519,6 @@ function renderSt3(app) {
     ${radio("st3_mode", "pack", pack, "Стикерпак: тираж — количество паков")}
     ${pack ? `<div class="st3-grid2" style="margin-top:6px;">${inp("packQty", "Количество паков, шт.", "1")}</div>
     <div class="hint" style="margin:6px 0 0;">В каждом паке по одному стикеру каждого вида.</div>` : ""}`;
-
-  const cxOptions = (cur) => st3Complexity.map(([val, name, k]) =>
-    `<option value="${val}" ${cur === val ? "selected" : ""}>${k === null ? name : `${name} — ×${fmtK(k)}`}</option>`).join("");
-  const complexityHtml = st3.items.map((it, i) => `
-      <div style="margin:0 0 10px;">
-        <label class="st3-lbl">${many || pack ? `Стикер ${i + 1}` : "Сложность"}</label>
-        <select class="st3-select" data-cx="${i}">${cxOptions(it.complexity)}</select>
-        ${it.complexity === "custom" ? `<div class="st3-grid2" style="margin-top:6px;">${itemInp(i, "customCoef", "Коэффициент сложности")}</div>` : ""}
-      </div>`).join("")
-    + `<div class="hint" style="margin:8px 0 0;">Коэффициент применяется только к контурной резке и времени ручной заливки. Площадь формы задаётся отдельно.</div>`;
 
   const gramsHtml = st3.resinMode === "manual"
     ? `<div class="st3-grid2" style="margin-top:8px;">${st3.items.map((it, i) => itemInp(i, "grams", many || pack ? `Расход смолы, г — стикер ${i + 1}` : "Расход смолы на 1 шт, г")).join("")}
@@ -1544,28 +1542,28 @@ function renderSt3(app) {
           <label class="st3-lbl">Название заказа</label>
           <input type="text" id="st3_name" placeholder="${pack ? "Например: Стикерпак «Коты»" : "Например: Стикеры с логотипом"}" value="${st3.name.replace(/"/g, "&quot;")}">
         </div>
-        ${sec(1, "size", "Размер и тираж", `
+        ${sec(1, "size", "Размер, форма и тираж", `
           ${modeHtml}
           ${itemsHtml}
-          <button type="button" class="btn secondary" id="st3AddItem" style="margin-top:4px;">+ Добавить стикер</button>`)}
-        ${sec(2, "shape", "Сложность формы", complexityHtml)}
-        ${sec(3, "print", "Плёнка и печать", `
+          <button type="button" class="btn secondary" id="st3AddItem" style="margin-top:4px;">+ Добавить стикер</button>
+          <div class="hint" style="margin:8px 0 0;">Сложность формы влияет на контурную резку и время ручной заливки; площадь формы задаётся отдельно.</div>`)}
+        ${sec(2, "print", "Плёнка и печать", `
           <div class="st3-grid2">
             ${inp("film", "Стоимость плёнки, ₽/м²")}${inp("print", "Стоимость печати, ₽/м²")}
             ${inp("layout", "Запас на раскладку, %")}${inp("cutPiece", "Контурная резка, ₽/шт.")}
           </div>`)}
-        ${sec(4, "resin", "Полимерная смола", `
+        ${sec(3, "resin", "Полимерная смола", `
           <div class="st3-grid2">
             ${inp("kitPrice", "Цена комплекта, ₽")}${inp("kitMass", "Масса комплекта, г")}
           </div>
           ${resinModeHtml}`)}
-        ${sec(5, "clock", "Работа оператора", `
+        ${sec(4, "clock", "Работа оператора", `
           <div class="st3-grid2">
             ${inp("pourSec", "Заливка одной шт., сек.")}${inp("prepMin", "Подготовка партии, мин.")}
             ${inp("packMin", "Выборка, упаковка и др., мин.")}${inp("operator", "Тариф оператора, ₽/час")}
           </div>
           ${out("Рабочее время на тираж", "st3_minutes")}`)}
-        ${sec(6, "percent", "Накладные расходы и наценка", `
+        ${sec(5, "percent", "Накладные расходы и наценка", `
           <div class="st3-grid2">
             ${inp("overhead", "Накладные расходы, %")}${inp("markup", "Наценка к себестоимости, %")}
           </div>`)}
