@@ -1298,7 +1298,7 @@ let st3Defaults = {
   pourSec: 15, prepMin: 15, packMin: 10, operator: 400,
   overhead: 17, markup: 130
 };
-const st3NewItem = () => ({ width: "", height: "", qty: 1, fill: null, complexity: "simple", customCoef: "", grams: "" });
+const st3NewItem = () => ({ width: "", height: "", qty: 1, fill: null, complexity: "simple", contour: "single", customCoef: "", grams: "" });
 const st3 = { name: "", mode: "order", packQty: 1, items: [st3NewItem()], resinMode: "auto" };
 Object.keys(st3Defaults).forEach(k => { if (k !== "fill") st3[k] = null; });   // null — значение из справочника
 
@@ -1328,7 +1328,8 @@ function st3ItemQty(it) { return st3.mode === "pack" ? st3Packs() : Math.max(1, 
 
 function st3Calc() {
   const layoutK = 1 + st3Val("layout") / 100;
-  const dome = st3Val("domeHeight") / 10;                       // мм → см
+  const dome = st3Val("domeHeight") / 10;
+  const kitMassV = st3Val("kitMass");                       // мм → см
   let costFilm = 0, costPrint = 0, costCut = 0, gNoLoss = 0, gPerSet = 0, pourMinutes = 0, pieces = 0, cutTotalM = 0;
   const items = st3.items.map((it) => {
     const qty = st3ItemQty(it);
@@ -1340,16 +1341,24 @@ function st3Calc() {
     const g = st3.resinMode === "manual" ? (Number(it.grams) || 0) : areaCm2 * dome * st3Val("domeCoef") * st3Val("density");
     costFilm += bboxCm2 / 10000 * qty * layoutK * st3Val("film");     // плёнка и печать — по габариту с запасом на раскладку
     costPrint += bboxCm2 / 10000 * qty * layoutK * st3Val("print");
-    const cutM = 2 * (w + h) / 1000;                                   // длина реза на 1 шт, м (периметр габарита)
+    const cutM = 2 * (w + h) / 1000 * (it.contour === "double" ? 2 : 1);   // длина реза на 1 шт, м (периметр габарита; двойной контур ×2)
     costCut += cutM * qty * st3Val("cutMeter") * cx;                  // контурная резка: ₽/пог. м × сложность
     cutTotalM += cutM * qty;
     gNoLoss += g * qty;
     gPerSet += g;
     pourMinutes += st3Val("pourSec") * qty / 60 * cx;                 // ручная заливка × сложность
     pieces += qty;
-    return { qty, w, h, areaCm2, cx, g, cutM };
+    const resinCost = kitMassV > 0 ? g * qty * (1 + st3Val("resinLoss") / 100) * st3Val("kitPrice") / kitMassV : 0;
+    const direct = bboxCm2 / 10000 * qty * layoutK * (st3Val("film") + st3Val("print")) + cutM * qty * st3Val("cutMeter") * cx
+      + resinCost + st3Val("consumables") * qty + st3Val("pourSec") * qty / 60 * cx / 60 * st3Val("operator");
+    return { qty, w, h, areaCm2, cx, g, cutM, direct };
   });
 
+  const sharedLabor = (st3Val("prepMin") + st3Val("packMin")) / 60 * st3Val("operator");
+  items.forEach((x) => {
+    x.cost = (x.direct + (pieces > 0 ? sharedLabor * x.qty / pieces : 0)) * (1 + st3Val("overhead") / 100);
+    x.costPiece = x.qty > 0 ? x.cost / x.qty : 0;
+  });
   const gTotal = gNoLoss * (1 + st3Val("resinLoss") / 100);
   const kitMass = st3Val("kitMass");
   const costResin = kitMass > 0 ? gTotal * st3Val("kitPrice") / kitMass : 0;
@@ -1411,6 +1420,8 @@ function st3Payload() {
         width_mm: x.w, height_mm: x.h, qty: x.qty,
         shape_area_cm2: Math.round(x.areaCm2 * 100) / 100,
         complexity: st3.items[i].complexity, complexity_coef: x.cx,
+        contour: st3.items[i].contour, cut_length_m_per_piece: Math.round(x.cutM * 1000) / 1000,
+        cost_per_piece: Math.round(x.costPiece * 100) / 100,
         resin_g_per_piece: Math.round(x.g * 1000) / 1000
       })),
       resin_mode: st3.resinMode,
@@ -1514,8 +1525,16 @@ function renderSt3(app) {
         <select class="st3-select" data-cx="${i}">${cxOptions(it.complexity)}</select>
         ${it.complexity === "custom" ? `<div class="st3-grid2" style="margin-top:6px;">${itemInp(i, "customCoef", "Коэффициент сложности")}</div>` : ""}
       </div>
+      <div style="margin-top:8px;">
+        <label class="st3-lbl">Контурная резка</label>
+        <div style="display:flex; gap:18px;">
+          ${radio("st3_ct_" + i, "single", it.contour !== "double", "Одинарный контур")}
+          ${radio("st3_ct_" + i, "double", it.contour === "double", "Двойной контур")}
+        </div>
+      </div>
       ${out("Фактическая площадь формы", "st3_area_" + i)}
-      ${out("Длина реза (периметр), на 1 шт.", "st3_cut_" + i)}
+      ${out("Длина реза на 1 шт.", "st3_cut_" + i)}
+      <div class="st3-out" style="border-top:1px solid var(--tg-theme-hint-color,#dddddd); padding-top:8px; font-size:13px;"><span>Себестоимость стикера, 1 шт.</span><b id="st3_cost_${i}"></b></div>
     </div>`).join("");
 
   const modeHtml = `
@@ -1588,7 +1607,7 @@ function renderSt3(app) {
   const setOut = (id, text) => { const el = document.getElementById(id); if (el) el.textContent = text; };
   const upd = () => {
     const r = st3Calc();
-    r.items.forEach((x, i) => { setOut("st3_area_" + i, nf(x.areaCm2, 2) + " см²"); setOut("st3_cut_" + i, nf(x.cutM * 100, 1) + " см"); });
+    r.items.forEach((x, i) => { setOut("st3_area_" + i, nf(x.areaCm2, 2) + " см²"); setOut("st3_cut_" + i, nf(x.cutM * 100, 1) + " см"); setOut("st3_cost_" + i, nf(x.costPiece, 2) + " руб."); });
     // «Расход на наклейку»: для одного стикера — на штуку; для пака — на один пак; для заказа из нескольких — на все наклейки без потерь
     let lbl, val;
     if (pack) { lbl = "Расход на 1 пак"; val = r.gPerSet; }
@@ -1638,6 +1657,11 @@ function renderSt3(app) {
       };
     }
   });
+  st3.items.forEach((_, i) => {
+    app.querySelectorAll(`input[name="st3_ct_${i}"]`).forEach((el) => {
+      el.onchange = () => { st3.items[i].contour = el.value; renderSt3(app); };
+    });
+  });
   app.querySelectorAll("select[data-cx]").forEach((el) => {
     el.onchange = () => { st3.items[Number(el.dataset.cx)].complexity = el.value; renderSt3(app); };
   });
@@ -1651,7 +1675,7 @@ function renderSt3(app) {
     const last = st3.items[st3.items.length - 1];
     const it = st3NewItem();
     // новый стикер сразу наследует размер и сложность предыдущего — обычно их правят по месту
-    if (last) { it.width = last.width; it.height = last.height; it.complexity = last.complexity; it.customCoef = last.customCoef; it.fill = last.fill; }
+    if (last) { it.width = last.width; it.height = last.height; it.complexity = last.complexity; it.contour = last.contour; it.customCoef = last.customCoef; it.fill = last.fill; }
     st3.items.push(it);
     renderSt3(app);
   };
