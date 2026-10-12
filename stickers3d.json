@@ -1,36 +1,20 @@
 {
-  "film": 800,
-  "print": 600,
-  "cut": 20,
-  "operator": 420,
-  "design": 1000,
-  "minCost": 1000,
-  "thickness": 1.5,
-  "waste": 10,
-  "pourMin": 1,
-  "packaging": 0,
-  "resinKg": 2700,
+  "fill": 85,
+  "film": 700,
+  "print": 450,
+  "layout": 15,
+  "cutPiece": 0.5,
+  "kitPrice": 1700,
+  "kitMass": 1500,
+  "domeHeight": 1.2,
+  "domeCoef": 0.7,
   "density": 1.1,
-  "tiers": [
-    {
-      "upTo": 10,
-      "coef": 1
-    },
-    {
-      "upTo": 100,
-      "coef": 1
-    },
-    {
-      "upTo": 300,
-      "coef": 1
-    },
-    {
-      "upTo": 500,
-      "coef": 1
-    },
-    {
-      "upTo": 1000,
-      "coef": 1
-    }
-  ]
+  "resinLoss": 28,
+  "consumables": 1,
+  "pourSec": 15,
+  "prepMin": 15,
+  "packMin": 10,
+  "operator": 400,
+  "overhead": 17,
+  "markup": 130
 }

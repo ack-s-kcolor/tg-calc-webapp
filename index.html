@@ -210,6 +210,26 @@
   .emb-section { font-size: 11px; font-weight: 600; color: var(--tg-theme-hint-color, #8a8a8a); margin: 12px 0 4px; }
   .emb-section:first-of-type { margin-top: 0; }
   .emb-result .summary-line { margin-top: 0; }
+
+  /* экран «3D стикеры»: нумерованные блоки */
+  .st3-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; align-items: start; }
+  @media (min-width: 760px) {
+    .st3-layout { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 28px; }
+    .st3-layout .emb-result { position: sticky; top: 64px; }
+  }
+  .st3-form input[type=text], .st3-form input[type=number] {
+    padding: 10px 14px; font-size: 15px; border-radius: 12px; margin-bottom: 0;
+  }
+  .st3-lbl { display: block; font-size: 12px; color: var(--tg-theme-hint-color, #8a8a8a); margin: 0 0 4px; }
+  .st3-sec { padding: 16px 0; border-bottom: 1px solid var(--tg-theme-section-separator-color, rgba(128,128,128,.25)); }
+  .st3-sec h2 { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 600; margin: 0 0 12px; }
+  .st3-sec h2 svg { width: 16px; height: 16px; flex: none; opacity: .75; }
+  .st3-grid2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px 12px; }
+  .st3-radio { display: flex; align-items: center; gap: 10px; margin: 7px 0; font-size: 14px; cursor: pointer; }
+  .st3-radio input { width: auto; margin: 0; }
+  .st3-out { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font-size: 12px; margin-top: 10px; padding: 0 4px; color: var(--tg-theme-hint-color, #8a8a8a); }
+  .st3-out b { font-size: 13px; color: var(--tg-theme-text-color, #000000); }
+  .st3-form input.st3-changed { border-color: #2481cc; box-shadow: 0 0 0 1px #2481cc; background: var(--tg-theme-bg-color, #ffffff); }
 </style>
 </head>
 <body>
@@ -1249,138 +1269,121 @@ function renderEmbroidery(app) {
 }
 
 // ---------- Калькулятор 3D стикеров со смолой (доминг) ----------
-// Себестоимость = плёнка + печать + резка контура + смола + работа оператора
-//                 + разработка макета (если отмечено) + упаковка.
-// Расход считается с запасом на брак. Коэффициент тиража умножает производство
-// (плёнка, печать, резка, смола, оператор); макет, упаковка и минимальная стоимость не умножаются.
-let st3Defaults = { film: 800, print: 600, cut: 20, resinKg: 2700, operator: 420, design: 1000, minCost: 1000, thickness: 1.5, density: 1.1, waste: 10, pourMin: 1, packaging: 0 };
-let st3Tiers = [{ upTo: 10, coef: 1 }, { upTo: 100, coef: 1 }, { upTo: 300, coef: 1 }, { upTo: 500, coef: 1 }, { upTo: 1000, coef: 1 }];
-const st3 = {
-  name: "", qty: 1, shape: "rect", height: 0, width: 0, cutMm: null, designOn: false, coef: null,
-  film: null, print: null, cut: null, resinKg: null, operator: null, design: null, minCost: null,
-  thickness: null, density: null, waste: null, pourMin: null, packaging: null
+// 1. Размер и тираж → 2. Сложность формы → 3. Плёнка и печать → 4. Полимерная смола
+// → 5. Работа оператора → 6. Накладные расходы и наценка.
+// Сложность формы (коэффициент) умножает только контурную резку и время ручной заливки.
+// Цена = (производство + накладные) × (1 + наценка).
+const st3Complexity = [
+  ["simple", "Простая", 1],
+  ["oval", "Овальная или скруглённая", 1.1],
+  ["light", "Несложная фигурная", 1.25],
+  ["complex", "Сложный контур", 1.5],
+  ["very", "Очень сложная", 2],
+  ["custom", "Свой коэффициент", null]
+];
+let st3Defaults = {
+  fill: 85,
+  film: 700, print: 450, layout: 15, cutPiece: 0.5,
+  kitPrice: 1700, kitMass: 1500, domeHeight: 1.2, domeCoef: 0.7, density: 1.1, resinLoss: 28, consumables: 1,
+  pourSec: 15, prepMin: 15, packMin: 10, operator: 400,
+  overhead: 17, markup: 130
 };
-const st3ParamFields = [
-  ["thickness", "Толщина слоя смолы, мм"],
-  ["density", "Плотность смолы, г/мл"],
-  ["waste", "Запас на брак, %"],
-  ["pourMin", "Заливка и обработка на 1 шт, мин"],
-  ["packaging", "Упаковка на 1 шт, руб."]
-];
-const st3TariffFields = [
-  ["film", "Плёнка-основа, руб./м²"],
-  ["print", "Печать, руб./м²"],
-  ["cut", "Резка контура, руб./пог. м"],
-  ["resinKg", "Смола + отвердитель, руб./кг"],
-  ["operator", "Работа оператора, руб./ч"],
-  ["design", "Разработка макета, руб."],
-  ["minCost", "Мин. стоимость работ, руб."]
-];
+const st3 = { name: "", qty: 1, width: "", height: "", complexity: "simple", customCoef: "", resinMode: "auto", gramsManual: "" };
+Object.keys(st3Defaults).forEach(k => { st3[k] = null; });   // null — значение из справочника
 
 function loadSt3Config(cfg) {
   if (!cfg || typeof cfg !== "object") return;
   Object.keys(st3Defaults).forEach(k => {
     if (cfg[k] !== undefined && isFinite(Number(cfg[k]))) st3Defaults[k] = Number(cfg[k]);
   });
-  if (Array.isArray(cfg.tiers)) {
-    const tiers = cfg.tiers
-      .map(t => ({ upTo: Number(t.upTo), coef: Number(t.coef) }))
-      .filter(t => t.upTo > 0 && t.coef > 0)
-      .sort((a, b) => a.upTo - b.upTo);
-    if (tiers.length > 0) st3Tiers = tiers;
-  }
 }
 
 function st3Val(key) {
   return (st3[key] === null || st3[key] === "") ? (Number(st3Defaults[key]) || 0) : (Number(st3[key]) || 0);
 }
 
-function st3TierFor(qty) {
-  return st3Tiers.find(t => qty <= t.upTo) || st3Tiers[st3Tiers.length - 1] || { upTo: Infinity, coef: 1 };
+function st3ComplexityCoef() {
+  if (st3.complexity === "custom") return Number(st3.customCoef) > 0 ? Number(st3.customCoef) : 1;
+  const row = st3Complexity.find(c => c[0] === st3.complexity);
+  return row ? row[2] : 1;
 }
 
 function st3Calc() {
   const qty = Math.max(1, Math.floor(Number(st3.qty)) || 1);
-  const h = Number(st3.height) || 0;
   const w = Number(st3.width) || 0;
-  const bboxM2 = h * w / 1e6;                                   // плёнка и печать идут по габариту
-  const shapeMm2 = st3.shape === "ellipse" ? Math.PI / 4 * h * w : h * w; // смола — по площади фигуры
-  // длина реза: по умолчанию из размеров (периметр прямоугольника или овала), можно задать вручную
-  let autoCutMm;
-  if (st3.shape === "ellipse") {
-    const a = h / 2, b = w / 2;
-    autoCutMm = Math.PI * (3 * (a + b) - Math.sqrt((3 * a + b) * (a + 3 * b)));   // приближение Рамануджана
-  } else {
-    autoCutMm = 2 * (h + w);
-  }
-  const manualCut = st3.cutMm !== null && st3.cutMm !== "" && Number(st3.cutMm) > 0;
-  const cutMm = manualCut ? Number(st3.cutMm) : autoCutMm;
-  const qtyEff = qty * (1 + st3Val("waste") / 100);             // с запасом на брак
-  // смола в килограммах: объём (мм² × мм = мм³; 1 000 000 мм³ = 1 л) × плотность (г/мл = кг/л)
-  const resinKgPiece = shapeMm2 * st3Val("thickness") / 1e6 * st3Val("density");
-  const resinKg = resinKgPiece * qtyEff;
-  const pourMinutes = st3Val("pourMin") * qtyEff;
+  const h = Number(st3.height) || 0;
+  const bboxCm2 = w * h / 100;                                  // габарит, см²
+  const areaCm2 = bboxCm2 * st3Val("fill") / 100;               // фактическая площадь формы, см²
+  const cx = st3ComplexityCoef();
 
-  const costFilm = bboxM2 * st3Val("film") * qtyEff;
-  const costPrint = bboxM2 * st3Val("print") * qtyEff;
-  const costCut = cutMm / 1000 * st3Val("cut") * qtyEff;
-  const costResin = resinKg * st3Val("resinKg");
-  const costLabor = pourMinutes / 60 * st3Val("operator");
-  const costWork = costFilm + costPrint + costCut + costResin + costLabor;
-  const design = st3.designOn ? st3Val("design") : 0;
-  const packaging = st3Val("packaging") * qty;
-  const costTotal = costWork + design + packaging;
+  // плёнка и печать — по габариту с запасом на раскладку
+  const layoutK = 1 + st3Val("layout") / 100;
+  const costFilm = bboxCm2 / 10000 * qty * layoutK * st3Val("film");
+  const costPrint = bboxCm2 / 10000 * qty * layoutK * st3Val("print");
+  const costCut = st3Val("cutPiece") * qty * cx;                // контурная резка × сложность
 
-  const autoCoef = Number(st3TierFor(qty).coef) || 1;
-  const manual = st3.coef !== null && st3.coef !== "" && Number(st3.coef) > 0;
-  const coef = manual ? Number(st3.coef) : autoCoef;
+  // смола: вручную в граммах или по площади и высоте купола
+  const gPiece = st3.resinMode === "manual"
+    ? (Number(st3.gramsManual) || 0)
+    : areaCm2 * (st3Val("domeHeight") / 10) * st3Val("domeCoef") * st3Val("density");   // см² × см = см³ = мл; × г/мл
+  const gTotal = gPiece * qty * (1 + st3Val("resinLoss") / 100);
+  const kitMass = st3Val("kitMass");
+  const costResin = kitMass > 0 ? gTotal * st3Val("kitPrice") / kitMass : 0;
+  const costConsumables = st3Val("consumables") * qty;
 
-  const priceWork = costWork * coef;
-  const workRaw = priceWork + design;
-  const minCost = st3Val("minCost");
-  const topUp = (minCost && workRaw < minCost && workRaw > 0) ? (minCost - workRaw) : 0;
-  const total = workRaw + topUp + packaging;
+  // оператор: заливка × сложность + подготовка партии + выборка и упаковка
+  const minutes = st3Val("pourSec") * qty / 60 * cx + st3Val("prepMin") + st3Val("packMin");
+  const costLabor = minutes / 60 * st3Val("operator");
+
+  const prime = costFilm + costPrint + costCut + costResin + costConsumables + costLabor;
+  const overheadSum = prime * st3Val("overhead") / 100;
+  const costTotal = prime + overheadSum;
+  const markupSum = costTotal * st3Val("markup") / 100;
+  const total = costTotal + markupSum;
   return {
-    qty, qtyEff, coef, autoCoef, manual, cutMm, autoCutMm, manualCut, resinKgPiece, resinKg, pourMinutes,
-    costFilm, costPrint, costCut, costResin, costLabor, costWork, design, packaging, costTotal,
-    priceWork, topUp, total, margin: total - costTotal
+    qty, areaCm2, cx, gPiece, gTotal, minutes,
+    costFilm, costPrint, costCut, costResin, costConsumables, costLabor,
+    prime, overheadSum, costTotal, markupSum, total
   };
 }
 
 function st3Payload() {
   const r = st3Calc();
-  const k = r.priceWork / (r.costWork || 1);                   // коэффициент, применённый к каждой статье
+  const f = r.prime > 0 ? r.total / r.prime : 0;                // накладные и наценка раскладываются по статьям
   const ops = [];
-  const addOp = (name, sum) => {
+  const addOp = (name, cost) => {
+    const sum = cost * f;
     if (sum > 0) ops.push({ name, mode: "pc", rate: sum / r.qty, length_m: 0, setup_cost: 0, grommet_count: 0, spacing_cm: 30, min_cost: 0, sum });
   };
-  addOp("Плёнка-основа", r.costFilm * (r.costWork ? k : 0));
-  addOp("Печать", r.costPrint * (r.costWork ? k : 0));
-  addOp("Резка по контуру", r.costCut * (r.costWork ? k : 0));
-  addOp(`Эпоксидная смола (${(Math.round(r.resinKg * 1000) / 1000)} кг на тираж)`, r.costResin * (r.costWork ? k : 0));
-  addOp(`Заливка и обработка (${embFmtTime(r.pourMinutes)})`, r.costLabor * (r.costWork ? k : 0));
-  addOp("Разработка макета", r.design);
-  addOp("Доплата до минимальной стоимости", r.topUp);
-  const componentSum = r.packaging + ops.reduce((a, o) => a + o.sum, 0);
+  addOp("Плёнка", r.costFilm);
+  addOp("Печать", r.costPrint);
+  addOp("Контурная резка", r.costCut);
+  addOp(`Полимерная смола (${Math.round(r.gTotal * 10) / 10} г на тираж)`, r.costResin);
+  addOp(`Работа оператора (${embFmtTime(r.minutes)})`, r.costLabor);
+  const materialSum = r.costConsumables * f;
+  const componentSum = materialSum + ops.reduce((a, o) => a + o.sum, 0);
   return {
     product: { name: st3.name.trim() || "3D стикеры со смолой", qty: r.qty, multi: false },
     components: [{
-      material: { name: "Упаковка", mode: "pc", rate: st3Val("packaging") },
+      material: { name: "Расходники", mode: "pc", rate: st3Val("consumables") * f },
       height_mm: Number(st3.height) || 0, width_mm: Number(st3.width) || 0, qty: 1, qty_per_unit: 1, material_length_m: 0,
-      material_sum: r.packaging,
+      material_sum: materialSum,
       operations: ops,
       component_sum: componentSum
     }],
     total: r.total,
     stickers3d: {
-      height_mm: Number(st3.height) || 0, width_mm: Number(st3.width) || 0, shape: st3.shape,
-      cut_length_mm: Math.round(r.cutMm * 10) / 10,
-      resin_g_per_piece: Math.round(r.resinKgPiece * 1000 * 100) / 100,
-      resin_kg_total: Math.round(r.resinKg * 1000) / 1000,
-      design_developed: !!st3.designOn,
-      tirage_coefficient: r.coef, tirage_coefficient_manual: r.manual,
-      cost_work: Math.round(r.costWork * 100) / 100,
+      width_mm: Number(st3.width) || 0, height_mm: Number(st3.height) || 0,
+      shape_area_cm2: Math.round(r.areaCm2 * 100) / 100,
+      complexity: st3.complexity, complexity_coef: r.cx,
+      resin_mode: st3.resinMode,
+      resin_g_per_piece: Math.round(r.gPiece * 1000) / 1000,
+      resin_g_total: Math.round(r.gTotal * 10) / 10,
+      work_minutes: Math.round(r.minutes * 10) / 10,
+      cost_production: Math.round(r.prime * 100) / 100,
+      overhead_sum: Math.round(r.overheadSum * 100) / 100,
       cost_total: Math.round(r.costTotal * 100) / 100,
+      markup_sum: Math.round(r.markupSum * 100) / 100,
       tariffs: Object.fromEntries(Object.keys(st3Defaults).map(key => [key, st3Val(key)]))
     }
   };
@@ -1391,80 +1394,110 @@ function st3ResultHtml() {
   const f = (v) => (Math.round(v * 100) / 100).toLocaleString("ru-RU");
   const line = (label, v, bold) => `<div style="display:flex; justify-content:space-between; gap:8px; font-size:13px; padding:2px 0;${bold ? " font-weight:600;" : ""}"><span>${label}</span><span>${f(v)} руб.</span></div>`;
   const title = (t) => `<div class="hint" style="margin:10px 0 4px; font-weight:600;">${t}</div>`;
-  const kg = (v) => v.toLocaleString("ru-RU", { maximumFractionDigits: 3 });
-  let h = `<div class="hint" style="margin:0 0 4px;">Смола: ${f(r.resinKgPiece * 1000)} г на 1 шт, ${kg(r.resinKg)} кг на тираж с запасом · длина реза ${f(r.cutMm)} мм${r.manualCut ? " (вручную)" : " (авто)"} · заливка ${embFmtTime(r.pourMinutes)}</div>`;
-  h += title("Себестоимость");
-  h += line("Плёнка-основа", r.costFilm);
+  let h = title("Себестоимость");
+  h += line("Плёнка", r.costFilm);
   h += line("Печать", r.costPrint);
-  h += line("Резка по контуру", r.costCut);
-  h += line(`Эпоксидная смола (${kg(r.resinKg)} кг)`, r.costResin);
-  h += line("Заливка и обработка", r.costLabor);
-  if (r.design > 0) h += line("Разработка макета", r.design);
-  if (r.packaging > 0) h += line("Упаковка", r.packaging);
+  h += line("Контурная резка", r.costCut);
+  h += line(`Полимерная смола (${f(r.gTotal)} г)`, r.costResin);
+  h += line("Расходники", r.costConsumables);
+  h += line(`Работа оператора (${embFmtTime(r.minutes)})`, r.costLabor);
+  h += line("Производство", r.prime, true);
+  h += line(`Накладные расходы ${f(st3Val("overhead"))}%`, r.overheadSum);
   h += line("Себестоимость итого", r.costTotal, true);
-  h += title(`Цена для клиента · коэффициент тиража ×${r.coef}${r.manual ? " (вручную)" : " (из справочника)"}`);
-  h += line(`Производство по себестоимости ${f(r.costWork)} × ${r.coef}`, r.priceWork);
-  if (r.design > 0) h += line("Разработка макета", r.design);
-  if (r.topUp > 0) h += line("Доплата до минимальной стоимости", r.topUp);
-  if (r.packaging > 0) h += line("Упаковка", r.packaging);
+  h += title("Цена для клиента");
+  h += line(`Наценка ${f(st3Val("markup"))}%`, r.markupSum);
   h += `<div class="total" style="justify-content:flex-start; gap:8px; margin-top:8px;"><span>Итого:</span><span>${f(r.total)} руб.</span></div>`;
-  h += `<div class="hint">За 1 шт: ${f(r.total / r.qty)} руб. · Наценка: ${r.margin >= 0 ? "+" : ""}${f(r.margin)} руб.${r.costTotal > 0 ? ` (${Math.round(r.margin / r.costTotal * 100)}% к себестоимости)` : ""}</div>`;
+  h += `<div class="hint">За 1 шт: ${f(r.total / r.qty)} руб.</div>`;
   return h;
 }
 
+const st3Icons = {
+  size: '<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z"/>',
+  shape: '<circle cx="7.5" cy="7.5" r="4"/><rect x="12.5" y="12.5" width="8" height="8" rx="1.5"/>',
+  print: '<path d="M6 9V3h12v6"/><rect x="3" y="9" width="18" height="9" rx="2"/><path d="M7 14h10v7H7z"/>',
+  resin: '<path d="M12 3s6 6.5 6 11a6 6 0 01-12 0c0-4.5 6-11 6-11z"/>',
+  clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+  percent: '<path d="M19 5L5 19"/><circle cx="7" cy="7" r="2"/><circle cx="17" cy="17" r="2"/>'
+};
+
 function renderSt3(app) {
-  const field = (id, label, key, step) => {
-    const isDef = key in st3Defaults;
-    const val = isDef ? (st3[key] === null ? st3Defaults[key] : st3[key]) : (st3[key] === null ? "" : st3[key]);
-    const changed = isDef && st3[key] !== null && Number(st3[key]) !== Number(st3Defaults[key]);
-    return `
-    <div>
-      <label>${label}</label>
-      <input type="number" id="st3_${id}" class="${changed ? "emb-changed" : ""}" step="${step || "any"}" min="0" inputmode="decimal" value="${val}">
-    </div>`;
+  const isDef = (key) => key in st3Defaults;
+  const changed = (key) => isDef(key) && st3[key] !== null && Number(st3[key]) !== Number(st3Defaults[key]);
+  const inp = (key, label, step) => {
+    const v = isDef(key) ? (st3[key] === null ? st3Defaults[key] : st3[key]) : st3[key];
+    return `<div><label class="st3-lbl">${label}</label><input type="number" class="st3-in${changed(key) ? " st3-changed" : ""}" data-key="${key}" step="${step || "any"}" min="0" inputmode="decimal" value="${v}"></div>`;
   };
+  const sec = (num, icon, title, body) => `
+    <div class="st3-sec">
+      <h2><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${st3Icons[icon]}</svg>${num}. ${title}</h2>
+      ${body}
+    </div>`;
+  const out = (label, id) => `<div class="st3-out"><span>${label}</span><b id="${id}"></b></div>`;
+  const radio = (name, value, checked, label) => `<label class="st3-radio"><input type="radio" name="${name}" value="${value}" ${checked ? "checked" : ""}><span>${label}</span></label>`;
+  const fmtK = (k) => String(k).replace(".", ",");
   const tg_ = !!tg;
   const actionHtml = tg_
     ? `<button class="btn btn-primary" id="st3Send">Отправить расчёт в чат</button>`
     : `<button class="btn btn-primary" id="st3Send">Скачать JSON расчёта</button>
        <button class="btn secondary" id="st3Xlsx" style="margin-top:6px;">Скачать Excel</button>`;
+
+  const complexityHtml = st3Complexity.map(([val, name, k]) =>
+    radio("st3_cx", val, st3.complexity === val, k === null ? name : `${name} — ×${fmtK(k)}`)).join("")
+    + (st3.complexity === "custom" ? `<div class="st3-grid2" style="margin-top:6px;">${inp("customCoef", "Коэффициент сложности")}</div>` : "")
+    + `<div class="hint" style="margin:8px 0 0;">Коэффициент применяется только к контурной резке и времени ручной заливки. Площадь формы задаётся отдельно.</div>`;
+
+  const resinModeHtml = `
+    <div class="st3-lbl" style="margin-top:12px;">Определение расхода</div>
+    ${radio("st3_rm", "manual", st3.resinMode === "manual", "Вручную в граммах")}
+    ${radio("st3_rm", "auto", st3.resinMode === "auto", "Автоматически по площади и толщине")}
+    <div class="st3-grid2" style="margin-top:8px;">
+      ${st3.resinMode === "manual"
+        ? inp("gramsManual", "Расход смолы на 1 шт, г")
+        : inp("domeHeight", "Высота купола, мм") + inp("domeCoef", "Коэффициент купола") + inp("density", "Плотность, г/мл")}
+      ${inp("resinLoss", "Потери смолы, %")}
+      ${inp("consumables", "Расходники, ₽/шт.")}
+    </div>
+    ${out("Расход на наклейку", "st3_gPiece")}
+    ${out("На весь тираж с потерями", "st3_gTotal")}`;
+
   app.innerHTML = `
     <h1>3D стикеры со смолой</h1>
-    <div class="emb-layout">
-      <div class="emb-form">
-        <div class="emb-grid">
-          <div class="full">
-            <label>Название заказа</label>
-            <input type="text" id="st3_name" placeholder="Например: Стикеры с логотипом" value="${st3.name.replace(/"/g, "&quot;")}">
-          </div>
-          ${field("qty", "Тираж, шт", "qty", "1")}
-          <div>
-            <label>Форма</label>
-            <select id="st3_shape" style="width:100%; padding:6px 9px; font-size:14px; border-radius:8px; border:1px solid var(--tg-theme-hint-color, #cccccc); background:var(--tg-theme-secondary-bg-color, #f2f2f2); color:var(--tg-theme-text-color, #000);">
-              <option value="rect" ${st3.shape === "rect" ? "selected" : ""}>Прямоугольник</option>
-              <option value="ellipse" ${st3.shape === "ellipse" ? "selected" : ""}>Круг / овал</option>
-            </select>
-          </div>
-          ${field("height", "Высота стикера, мм", "height")}
-          ${field("width", "Ширина стикера, мм", "width")}
-          <div>
-            <label>Длина реза на 1 шт, мм (авто, можно править)</label>
-            <input type="number" id="st3_cutMm" class="${st3.cutMm !== null ? "emb-changed" : ""}" step="any" min="0" inputmode="decimal" value="${st3.cutMm !== null ? st3.cutMm : (Math.round(st3Calc().autoCutMm * 10) / 10 || "")}">
-          </div>
-          ${field("coef", "Коэффициент тиража (пусто — из справочника)", "coef")}
-          <label class="emb-check"><input type="checkbox" id="st3_designOn" ${st3.designOn ? "checked" : ""}> Макет разрабатывался</label>
+    <div class="st3-layout">
+      <div class="st3-form">
+        <div>
+          <label class="st3-lbl">Название заказа</label>
+          <input type="text" id="st3_name" placeholder="Например: Стикеры с логотипом" value="${st3.name.replace(/"/g, "&quot;")}">
         </div>
-        <div class="emb-section">Параметры производства</div>
-        <div class="emb-grid">
-          ${st3ParamFields.map(([key, label]) => field(key, label, key)).join("")}
-        </div>
-        <div class="emb-section" style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
-          <span>Тарифы из справочника — можно менять для этого расчёта</span>
-          <button type="button" class="btn-sm" id="st3ResetTariffs" style="padding:3px 8px; font-size:11px; font-weight:400;">Сбросить</button>
-        </div>
-        <div class="hint" style="margin:0 0 6px;">Изменённые значения выделены синей рамкой. Постоянно тарифы меняются в редакторе справочников.</div>
-        <div class="emb-grid">
-          ${st3TariffFields.map(([key, label]) => field(key, label, key)).join("")}
+        ${sec(1, "size", "Размер и тираж", `
+          <div class="st3-grid2">
+            ${inp("width", "Ширина, мм")}${inp("height", "Высота, мм")}
+            ${inp("qty", "Количество, шт.", "1")}${inp("fill", "Площадь формы от габарита, %")}
+          </div>
+          ${out("Фактическая площадь формы", "st3_area")}`)}
+        ${sec(2, "shape", "Сложность формы", complexityHtml)}
+        ${sec(3, "print", "Плёнка и печать", `
+          <div class="st3-grid2">
+            ${inp("film", "Стоимость плёнки, ₽/м²")}${inp("print", "Стоимость печати, ₽/м²")}
+            ${inp("layout", "Запас на раскладку, %")}${inp("cutPiece", "Контурная резка, ₽/шт.")}
+          </div>`)}
+        ${sec(4, "resin", "Полимерная смола", `
+          <div class="st3-grid2">
+            ${inp("kitPrice", "Цена комплекта, ₽")}${inp("kitMass", "Масса комплекта, г")}
+          </div>
+          ${resinModeHtml}`)}
+        ${sec(5, "clock", "Работа оператора", `
+          <div class="st3-grid2">
+            ${inp("pourSec", "Заливка одной шт., сек.")}${inp("prepMin", "Подготовка партии, мин.")}
+            ${inp("packMin", "Выборка, упаковка и др., мин.")}${inp("operator", "Тариф оператора, ₽/час")}
+          </div>
+          ${out("Рабочее время на тираж", "st3_minutes")}`)}
+        ${sec(6, "percent", "Накладные расходы и наценка", `
+          <div class="st3-grid2">
+            ${inp("overhead", "Накладные расходы, %")}${inp("markup", "Наценка к себестоимости, %")}
+          </div>`)}
+        <div style="padding-top:12px;">
+          <button type="button" class="btn-sm" id="st3ResetTariffs" style="padding:5px 10px; font-size:12px; font-weight:400;">Сбросить значения к справочнику</button>
+          <div class="hint" style="margin:6px 0 0;">Изменённые поля выделены синей рамкой. Значения по умолчанию задаются в редакторе справочников.</div>
         </div>
       </div>
       <div class="emb-result">
@@ -1474,51 +1507,44 @@ function renderSt3(app) {
       </div>
     </div>
   `;
+
+  const nf = (v, d) => (Math.round(v * Math.pow(10, d)) / Math.pow(10, d)).toLocaleString("ru-RU", { maximumFractionDigits: d });
+  const setOut = (id, text) => { const el = document.getElementById(id); if (el) el.textContent = text; };
   const upd = () => {
+    const r = st3Calc();
+    setOut("st3_area", nf(r.areaCm2, 2) + " см²");
+    setOut("st3_gPiece", nf(r.gPiece, 2) + " г");
+    setOut("st3_gTotal", nf(r.gTotal, 1) + " г");
+    setOut("st3_minutes", nf(r.minutes, 1) + " мин");
     document.getElementById("st3Result").innerHTML = st3ResultHtml();
-    const rr = st3Calc();
-    document.getElementById("st3_coef").placeholder = "из справочника: ×" + rr.autoCoef;
-    const cutEl = document.getElementById("st3_cutMm");
-    cutEl.classList.toggle("emb-changed", st3.cutMm !== null && st3.cutMm !== "");
-    // пока длину не правили вручную, поле следует за размерами и формой
-    if ((st3.cutMm === null || st3.cutMm === "") && document.activeElement !== cutEl) {
-      cutEl.value = Math.round(rr.autoCutMm * 10) / 10 || "";
-    }
   };
   document.getElementById("st3_name").oninput = (e) => { st3.name = e.target.value; };
-  document.getElementById("st3_shape").onchange = (e) => { st3.shape = e.target.value; upd(); };
-  document.getElementById("st3_designOn").onchange = (e) => { st3.designOn = e.target.checked; upd(); };
-  const keys = ["qty", "height", "width", "coef"].concat(st3ParamFields.map(x => x[0]), st3TariffFields.map(x => x[0]));
-  keys.forEach((key) => {
-    const el = document.getElementById("st3_" + key);
-    const isDef = key in st3Defaults;
-    el.oninput = (e) => {
-      st3[key] = e.target.value === "" ? (key === "qty" ? 1 : ((isDef || key === "coef" || key === "cutMm") ? null : 0)) : e.target.value;
-      if (isDef) el.classList.toggle("emb-changed", el.value !== "" && Number(el.value) !== Number(st3Defaults[key]));
+  app.querySelectorAll("input.st3-in").forEach((el) => {
+    const key = el.dataset.key;
+    el.oninput = () => {
+      if (isDef(key)) {
+        st3[key] = el.value === "" ? null : el.value;
+        el.classList.toggle("st3-changed", el.value !== "" && Number(el.value) !== Number(st3Defaults[key]));
+      } else {
+        st3[key] = el.value;
+      }
       upd();
     };
-    if (isDef) {
-      el.onchange = () => {
-        if (el.value === "") { st3[key] = null; el.value = st3Defaults[key]; el.classList.remove("emb-changed"); upd(); }
+    if (isDef(key)) {
+      el.onchange = () => {            // очистили поле — возвращаем значение из справочника
+        if (el.value === "") { st3[key] = null; el.value = st3Defaults[key]; el.classList.remove("st3-changed"); upd(); }
       };
     }
   });
-  const cutInput = document.getElementById("st3_cutMm");
-  cutInput.oninput = (e) => { st3.cutMm = e.target.value === "" ? null : e.target.value; upd(); };
-  cutInput.onchange = () => {
-    if (cutInput.value === "") {
-      st3.cutMm = null;
-      cutInput.value = Math.round(st3Calc().autoCutMm * 10) / 10 || "";   // сразу показываем авто-значение
-      upd();
-    }
-  };
+  app.querySelectorAll('input[name="st3_cx"]').forEach((el) => {
+    el.onchange = () => { st3.complexity = el.value; renderSt3(app); };
+  });
+  app.querySelectorAll('input[name="st3_rm"]').forEach((el) => {
+    el.onchange = () => { st3.resinMode = el.value; renderSt3(app); };
+  });
   document.getElementById("st3ResetTariffs").onclick = () => {
-    Object.keys(st3Defaults).forEach((k) => {
-      st3[k] = null;
-      const el = document.getElementById("st3_" + k);
-      if (el) { el.value = st3Defaults[k]; el.classList.remove("emb-changed"); }
-    });
-    upd();
+    Object.keys(st3Defaults).forEach((k) => { st3[k] = null; });
+    renderSt3(app);
   };
   document.getElementById("st3Send").onclick = () => {
     const payload = st3Payload();
