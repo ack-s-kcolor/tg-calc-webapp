@@ -1293,7 +1293,7 @@ const st3Complexity = [
 ];
 let st3Defaults = {
   fill: 85,
-  film: 700, print: 450, layout: 15, cutPiece: 0.5,
+  film: 700, print: 450, layout: 15, cutMeter: 5,
   kitPrice: 1700, kitMass: 1500, domeHeight: 1.2, domeCoef: 0.7, density: 1.1, resinLoss: 28, consumables: 1,
   pourSec: 15, prepMin: 15, packMin: 10, operator: 400,
   overhead: 17, markup: 130
@@ -1329,7 +1329,7 @@ function st3ItemQty(it) { return st3.mode === "pack" ? st3Packs() : Math.max(1, 
 function st3Calc() {
   const layoutK = 1 + st3Val("layout") / 100;
   const dome = st3Val("domeHeight") / 10;                       // мм → см
-  let costFilm = 0, costPrint = 0, costCut = 0, gNoLoss = 0, gPerSet = 0, pourMinutes = 0, pieces = 0;
+  let costFilm = 0, costPrint = 0, costCut = 0, gNoLoss = 0, gPerSet = 0, pourMinutes = 0, pieces = 0, cutTotalM = 0;
   const items = st3.items.map((it) => {
     const qty = st3ItemQty(it);
     const w = Number(it.width) || 0, h = Number(it.height) || 0;
@@ -1340,12 +1340,14 @@ function st3Calc() {
     const g = st3.resinMode === "manual" ? (Number(it.grams) || 0) : areaCm2 * dome * st3Val("domeCoef") * st3Val("density");
     costFilm += bboxCm2 / 10000 * qty * layoutK * st3Val("film");     // плёнка и печать — по габариту с запасом на раскладку
     costPrint += bboxCm2 / 10000 * qty * layoutK * st3Val("print");
-    costCut += st3Val("cutPiece") * qty * cx;                         // контурная резка × сложность
+    const cutM = 2 * (w + h) / 1000;                                   // длина реза на 1 шт, м (периметр габарита)
+    costCut += cutM * qty * st3Val("cutMeter") * cx;                  // контурная резка: ₽/пог. м × сложность
+    cutTotalM += cutM * qty;
     gNoLoss += g * qty;
     gPerSet += g;
     pourMinutes += st3Val("pourSec") * qty / 60 * cx;                 // ручная заливка × сложность
     pieces += qty;
-    return { qty, w, h, areaCm2, cx, g };
+    return { qty, w, h, areaCm2, cx, g, cutM };
   });
 
   const gTotal = gNoLoss * (1 + st3Val("resinLoss") / 100);
@@ -1362,7 +1364,7 @@ function st3Calc() {
   const total = costTotal + markupSum;
   const packs = st3Packs();
   return {
-    items, pieces, packs, perSet: items.length,
+    items, pieces, packs, perSet: items.length, cutTotalM,
     gTotal, gNoLoss, gPerSet, minutes,
     costFilm, costPrint, costCut, costResin, costConsumables, costLabor,
     prime, overheadSum, costTotal, markupSum, total,
@@ -1412,6 +1414,7 @@ function st3Payload() {
         resin_g_per_piece: Math.round(x.g * 1000) / 1000
       })),
       resin_mode: st3.resinMode,
+      cut_length_m: Math.round(r.cutTotalM * 100) / 100,
       resin_g_total: Math.round(r.gTotal * 10) / 10,
       work_minutes: Math.round(r.minutes * 10) / 10,
       cost_production: Math.round(r.prime * 100) / 100,
@@ -1512,6 +1515,7 @@ function renderSt3(app) {
         ${it.complexity === "custom" ? `<div class="st3-grid2" style="margin-top:6px;">${itemInp(i, "customCoef", "Коэффициент сложности")}</div>` : ""}
       </div>
       ${out("Фактическая площадь формы", "st3_area_" + i)}
+      ${out("Длина реза (периметр), на 1 шт.", "st3_cut_" + i)}
     </div>`).join("");
 
   const modeHtml = `
@@ -1550,7 +1554,7 @@ function renderSt3(app) {
         ${sec(2, "print", "Плёнка и печать", `
           <div class="st3-grid2">
             ${inp("film", "Стоимость плёнки, ₽/м²")}${inp("print", "Стоимость печати, ₽/м²")}
-            ${inp("layout", "Запас на раскладку, %")}${inp("cutPiece", "Контурная резка, ₽/шт.")}
+            ${inp("layout", "Запас на раскладку, %")}${inp("cutMeter", "Контурная резка, ₽/пог. м")}
           </div>`)}
         ${sec(3, "resin", "Полимерная смола", `
           <div class="st3-grid2">
@@ -1584,7 +1588,7 @@ function renderSt3(app) {
   const setOut = (id, text) => { const el = document.getElementById(id); if (el) el.textContent = text; };
   const upd = () => {
     const r = st3Calc();
-    r.items.forEach((x, i) => setOut("st3_area_" + i, nf(x.areaCm2, 2) + " см²"));
+    r.items.forEach((x, i) => { setOut("st3_area_" + i, nf(x.areaCm2, 2) + " см²"); setOut("st3_cut_" + i, nf(x.cutM * 100, 1) + " см"); });
     // «Расход на наклейку»: для одного стикера — на штуку; для пака — на один пак; для заказа из нескольких — на все наклейки без потерь
     let lbl, val;
     if (pack) { lbl = "Расход на 1 пак"; val = r.gPerSet; }

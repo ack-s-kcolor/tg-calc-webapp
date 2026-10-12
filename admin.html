@@ -903,7 +903,7 @@ const st3Fields = [
   ["film", "3. Стоимость плёнки", "руб./м²"],
   ["print", "3. Стоимость печати", "руб./м²"],
   ["layout", "3. Запас на раскладку", "%"],
-  ["cutPiece", "3. Контурная резка", "руб./шт."],
+  ["cutMeter", "3. Контурная резка", "руб./пог. м"],
   ["kitPrice", "4. Смола: цена комплекта", "руб."],
   ["kitMass", "4. Смола: масса комплекта", "г"],
   ["domeHeight", "4. Высота купола", "мм"],
@@ -918,7 +918,7 @@ const st3Fields = [
   ["overhead", "6. Накладные расходы", "%"],
   ["markup", "6. Наценка к себестоимости", "%"]
 ];
-let st3Data = { fill: 85, film: 700, print: 450, layout: 15, cutPiece: 0.5, kitPrice: 1700, kitMass: 1500, domeHeight: 1.2, domeCoef: 0.7, density: 1.1, resinLoss: 28, consumables: 1, pourSec: 15, prepMin: 15, packMin: 10, operator: 400, overhead: 17, markup: 130 };
+let st3Data = { fill: 85, film: 700, print: 450, layout: 15, cutMeter: 5, kitPrice: 1700, kitMass: 1500, domeHeight: 1.2, domeCoef: 0.7, density: 1.1, resinLoss: 28, consumables: 1, pourSec: 15, prepMin: 15, packMin: 10, operator: 400, overhead: 17, markup: 130 };
 
 function renderSt3() {
   const tbody = document.getElementById("rowsSt3");

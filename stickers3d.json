@@ -1,9 +1,9 @@
 {
   "fill": 85,
-  "film": 700,
-  "print": 450,
+  "film": 500,
+  "print": 1200,
   "layout": 15,
-  "cutPiece": 0.5,
+  "cutMeter": 15,
   "kitPrice": 1700,
   "kitMass": 1500,
   "domeHeight": 1.2,
