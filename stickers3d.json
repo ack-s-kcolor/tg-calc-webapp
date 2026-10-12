@@ -1,5 +1,5 @@
 {
-  "fill": 85,
+  "fill": 100,
   "film": 500,
   "print": 1200,
   "layout": 15,
@@ -9,7 +9,7 @@
   "domeHeight": 1.2,
   "domeCoef": 0.7,
   "density": 1.1,
-  "resinLoss": 28,
+  "resinLoss": 30,
   "consumables": 1,
   "pourSec": 15,
   "prepMin": 15,
