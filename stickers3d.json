@@ -2,7 +2,6 @@
   "film": 800,
   "print": 600,
   "cut": 20,
-  "resin": 3,
   "operator": 420,
   "design": 1000,
   "minCost": 1000,
@@ -10,11 +9,28 @@
   "waste": 10,
   "pourMin": 1,
   "packaging": 0,
+  "resinKg": 2700,
+  "density": 1.1,
   "tiers": [
-    { "upTo": 10, "coef": 1 },
-    { "upTo": 100, "coef": 1 },
-    { "upTo": 300, "coef": 1 },
-    { "upTo": 500, "coef": 1 },
-    { "upTo": 1000, "coef": 1 }
+    {
+      "upTo": 10,
+      "coef": 1
+    },
+    {
+      "upTo": 100,
+      "coef": 1
+    },
+    {
+      "upTo": 300,
+      "coef": 1
+    },
+    {
+      "upTo": 500,
+      "coef": 1
+    },
+    {
+      "upTo": 1000,
+      "coef": 1
+    }
   ]
 }

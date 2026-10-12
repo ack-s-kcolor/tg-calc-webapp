@@ -923,16 +923,17 @@ const st3Fields = [
   ["film", "Плёнка-основа", "руб./м²"],
   ["print", "Печать", "руб./м²"],
   ["cut", "Резка контура", "руб./пог. м"],
-  ["resin", "Смола + отвердитель", "руб./мл"],
+  ["resinKg", "Смола + отвердитель", "руб./кг"],
   ["operator", "Работа оператора", "руб./час"],
   ["design", "Разработка макета (если отмечено в калькуляторе)", "руб."],
   ["minCost", "Минимальная стоимость работ", "руб."],
   ["thickness", "Толщина слоя смолы", "мм"],
+  ["density", "Плотность смолы", "г/мл"],
   ["waste", "Запас на брак", "%"],
   ["pourMin", "Заливка и обработка на 1 шт", "мин"],
   ["packaging", "Упаковка на 1 шт", "руб."]
 ];
-let st3Data = { film: 800, print: 600, cut: 20, resin: 3, operator: 420, design: 1000, minCost: 1000, thickness: 1.5, waste: 10, pourMin: 1, packaging: 0 };
+let st3Data = { film: 800, print: 600, cut: 20, resinKg: 2700, operator: 420, design: 1000, minCost: 1000, thickness: 1.5, density: 1.1, waste: 10, pourMin: 1, packaging: 0 };
 let st3TiersData = [{ upTo: 10, coef: 1 }, { upTo: 100, coef: 1 }, { upTo: 300, coef: 1 }, { upTo: 500, coef: 1 }, { upTo: 1000, coef: 1 }];
 
 function renderSt3() {
