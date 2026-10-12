@@ -140,6 +140,7 @@
   <button class="tab" id="tab-link">Материал → Операции</button>
   <button class="tab" id="tab-tpl">Шаблоны заказов</button>
   <button class="tab" id="tab-emb">Вышивка</button>
+  <button class="tab" id="tab-st3">3D стикеры</button>
 </div>
 
 <!-- МАТЕРИАЛЫ -->
@@ -320,13 +321,63 @@
   <div class="status" id="statusEmb"></div>
 </div>
 
+<!-- 3D СТИКЕРЫ -->
+<div class="section" id="section-st3">
+  <div class="hint" style="margin-top:0;">
+    Тарифы и параметры по умолчанию для калькулятора 3D стикеров со смолой. В калькуляторе любое значение
+    можно поменять для конкретного заказа. Размер стикера, тираж и признак «макет разрабатывался» вводятся
+    прямо в калькуляторе.
+  </div>
+
+  <div class="file-row">
+    <label>Существующий stickers3d.json (необязательно): <input type="file" id="fileInputSt3" accept=".json"></label>
+  </div>
+
+  <table style="max-width:640px;">
+    <thead>
+      <tr>
+        <th style="width:330px">Параметр</th>
+        <th style="width:140px">Значение</th>
+        <th style="width:160px">Единица</th>
+      </tr>
+    </thead>
+    <tbody id="rowsSt3"></tbody>
+  </table>
+
+  <h3 style="margin:24px 0 6px;">Коэффициент в зависимости от тиража</h3>
+  <div class="hint" style="margin-top:0;">
+    Коэффициент умножает производство: плёнку, печать, резку, смолу и работу оператора. Разработка макета,
+    упаковка и минимальная стоимость на него не умножаются. Для тиража больше последнего диапазона берётся
+    последний коэффициент. Меньше 1 — скидка, больше 1 — наценка.
+  </div>
+  <table style="max-width:640px;">
+    <thead>
+      <tr>
+        <th style="width:200px">Тираж, шт</th>
+        <th style="width:160px">До, шт (включительно)</th>
+        <th style="width:140px">Коэффициент</th>
+        <th style="width:90px"></th>
+      </tr>
+    </thead>
+    <tbody id="rowsSt3Tiers"></tbody>
+  </table>
+  <div class="actions">
+    <button class="secondary" id="addSt3Tier">+ Добавить диапазон</button>
+  </div>
+
+  <div class="actions">
+    <button id="downloadSt3">Скачать stickers3d.json</button>
+  </div>
+  <div class="status" id="statusSt3"></div>
+</div>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 let matData = [];
 let opData = [];
 
 function setTab(t) {
-  ["mat", "op", "link", "tpl", "emb"].forEach((name) => {
+  ["mat", "op", "link", "tpl", "emb", "st3"].forEach((name) => {
     document.getElementById("tab-" + name).classList.toggle("active", t === name);
     document.getElementById("section-" + name).classList.toggle("active", t === name);
   });
@@ -336,6 +387,7 @@ document.getElementById("tab-op").onclick = () => setTab("op");
 document.getElementById("tab-link").onclick = () => setTab("link");
 document.getElementById("tab-tpl").onclick = () => setTab("tpl");
 document.getElementById("tab-emb").onclick = () => setTab("emb");
+document.getElementById("tab-st3").onclick = () => setTab("st3");
 
 // ---------- Материалы ----------
 
@@ -864,6 +916,137 @@ document.getElementById("downloadEmb").onclick = () => {
 
 renderEmb();
 renderEmbTiers();
+
+// ---------- 3D стикеры ----------
+
+const st3Fields = [
+  ["film", "Плёнка-основа", "руб./м²"],
+  ["print", "Печать", "руб./м²"],
+  ["cut", "Резка контура", "руб./пог. м"],
+  ["resin", "Смола + отвердитель", "руб./мл"],
+  ["operator", "Работа оператора", "руб./час"],
+  ["design", "Разработка макета (если отмечено в калькуляторе)", "руб."],
+  ["minCost", "Минимальная стоимость работ", "руб."],
+  ["thickness", "Толщина слоя смолы", "мм"],
+  ["waste", "Запас на брак", "%"],
+  ["pourMin", "Заливка и обработка на 1 шт", "мин"],
+  ["packaging", "Упаковка на 1 шт", "руб."]
+];
+let st3Data = { film: 800, print: 600, cut: 20, resin: 3, operator: 420, design: 1000, minCost: 1000, thickness: 1.5, waste: 10, pourMin: 1, packaging: 0 };
+let st3TiersData = [{ upTo: 10, coef: 1 }, { upTo: 100, coef: 1 }, { upTo: 300, coef: 1 }, { upTo: 500, coef: 1 }, { upTo: 1000, coef: 1 }];
+
+function renderSt3() {
+  const tbody = document.getElementById("rowsSt3");
+  tbody.innerHTML = "";
+  st3Fields.forEach(([key, label, unit]) => {
+    const tr = document.createElement("tr");
+    const nameTd = document.createElement("td");
+    nameTd.textContent = label;
+    const valTd = document.createElement("td");
+    const input = document.createElement("input");
+    input.type = "number"; input.step = "0.01"; input.min = "0";
+    input.value = st3Data[key];
+    input.oninput = (e) => { st3Data[key] = e.target.value; };
+    valTd.appendChild(input);
+    const unitTd = document.createElement("td");
+    unitTd.textContent = unit;
+    unitTd.style.color = "#888";
+    tr.appendChild(nameTd); tr.appendChild(valTd); tr.appendChild(unitTd);
+    tbody.appendChild(tr);
+  });
+}
+
+function renderSt3Tiers() {
+  const tbody = document.getElementById("rowsSt3Tiers");
+  tbody.innerHTML = "";
+  st3TiersData.forEach((t, i) => {
+    const tr = document.createElement("tr");
+    const rangeTd = document.createElement("td");
+    rangeTd.id = "st3TierRange" + i;
+    rangeTd.style.color = "#555";
+    const upTd = document.createElement("td");
+    const upInput = document.createElement("input");
+    upInput.type = "number"; upInput.min = "1"; upInput.step = "1";
+    upInput.value = t.upTo;
+    upInput.oninput = (e) => { st3TiersData[i].upTo = e.target.value; updateSt3TierLabels(); };
+    upTd.appendChild(upInput);
+    const coefTd = document.createElement("td");
+    const coefInput = document.createElement("input");
+    coefInput.type = "number"; coefInput.min = "0"; coefInput.step = "0.01";
+    coefInput.value = t.coef;
+    coefInput.oninput = (e) => { st3TiersData[i].coef = e.target.value; };
+    coefTd.appendChild(coefInput);
+    const delTd = document.createElement("td");
+    const delBtn = document.createElement("button");
+    delBtn.className = "danger";
+    delBtn.textContent = "Удалить";
+    delBtn.onclick = () => { st3TiersData.splice(i, 1); renderSt3Tiers(); };
+    delTd.appendChild(delBtn);
+    tr.appendChild(rangeTd); tr.appendChild(upTd); tr.appendChild(coefTd); tr.appendChild(delTd);
+    tbody.appendChild(tr);
+  });
+  updateSt3TierLabels();
+}
+
+function updateSt3TierLabels() {
+  const sorted = st3TiersData.map((t, i) => ({ i, up: parseInt(t.upTo) || 0 })).sort((a, b) => a.up - b.up);
+  let prev = 0;
+  sorted.forEach(({ i, up }) => {
+    const el = document.getElementById("st3TierRange" + i);
+    if (el) el.textContent = `${prev + 1} – ${up}`;
+    prev = up;
+  });
+}
+
+document.getElementById("addSt3Tier").onclick = () => {
+  const last = st3TiersData.reduce((m, t) => Math.max(m, parseInt(t.upTo) || 0), 0);
+  st3TiersData.push({ upTo: last + 100, coef: 1 });
+  renderSt3Tiers();
+};
+
+document.getElementById("fileInputSt3").addEventListener("change", (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (evt) => {
+    try {
+      const parsed = JSON.parse(evt.target.result);
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error("not object");
+      st3Fields.forEach(([key]) => { if (parsed[key] !== undefined) st3Data[key] = parsed[key]; });
+      if (Array.isArray(parsed.tiers) && parsed.tiers.length > 0) {
+        st3TiersData = parsed.tiers.map(t => ({ upTo: t.upTo, coef: t.coef }));
+      }
+      renderSt3();
+      renderSt3Tiers();
+      document.getElementById("statusSt3").textContent = `Загружено: ${file.name}`;
+    } catch (err) {
+      document.getElementById("statusSt3").textContent = "Не удалось прочитать файл: это не корректный JSON.";
+    }
+  };
+  reader.readAsText(file, "utf-8");
+});
+
+document.getElementById("downloadSt3").onclick = () => {
+  const out = {};
+  st3Fields.forEach(([key]) => { out[key] = parseFloat(st3Data[key]) || 0; });
+  const tiers = st3TiersData
+    .map(t => ({ upTo: parseInt(t.upTo), coef: parseFloat(t.coef) }))
+    .filter(t => t.upTo > 0 && t.coef > 0)
+    .sort((a, b) => a.upTo - b.upTo);
+  const seen = new Set();
+  out.tiers = tiers.filter(t => !seen.has(t.upTo) && seen.add(t.upTo));
+  const blob = new Blob([JSON.stringify(out, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "stickers3d.json";
+  a.click();
+  URL.revokeObjectURL(url);
+  document.getElementById("statusSt3").textContent = "Скачан файл: stickers3d.json";
+};
+
+renderSt3();
+renderSt3Tiers();
 
 // ---------- Материал -> Операции ----------
 

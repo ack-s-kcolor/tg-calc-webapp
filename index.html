@@ -491,14 +491,21 @@ function renderInner() {
       <div class="hint">Выберите, что считаем:</div>
       <button class="btn btn-primary" id="goOrder">Калькулятор заказа</button>
       <button class="btn" id="goEmb" style="margin-top:8px;">Машинная вышивка</button>
+      <button class="btn" id="goSt3" style="margin-top:8px;">3D стикеры со смолой</button>
     `;
     document.getElementById("goOrder").onclick = () => goToStep("product");
     document.getElementById("goEmb").onclick = () => goToStep("embroidery");
+    document.getElementById("goSt3").onclick = () => goToStep("stickers3d");
     return;
   }
 
   if (state.step === "embroidery") {
     renderEmbroidery(app);
+    return;
+  }
+
+  if (state.step === "stickers3d") {
+    renderSt3(app);
     return;
   }
 
@@ -1241,6 +1248,273 @@ function renderEmbroidery(app) {
   upd();
 }
 
+// ---------- Калькулятор 3D стикеров со смолой (доминг) ----------
+// Себестоимость = плёнка + печать + резка контура + смола + работа оператора
+//                 + разработка макета (если отмечено) + упаковка.
+// Расход считается с запасом на брак. Коэффициент тиража умножает производство
+// (плёнка, печать, резка, смола, оператор); макет, упаковка и минимальная стоимость не умножаются.
+let st3Defaults = { film: 800, print: 600, cut: 20, resin: 3, operator: 420, design: 1000, minCost: 1000, thickness: 1.5, waste: 10, pourMin: 1, packaging: 0 };
+let st3Tiers = [{ upTo: 10, coef: 1 }, { upTo: 100, coef: 1 }, { upTo: 300, coef: 1 }, { upTo: 500, coef: 1 }, { upTo: 1000, coef: 1 }];
+const st3 = {
+  name: "", qty: 1, shape: "rect", height: 0, width: 0, cutMm: null, designOn: false, coef: null,
+  film: null, print: null, cut: null, resin: null, operator: null, design: null, minCost: null,
+  thickness: null, waste: null, pourMin: null, packaging: null
+};
+const st3ParamFields = [
+  ["thickness", "Толщина слоя смолы, мм"],
+  ["waste", "Запас на брак, %"],
+  ["pourMin", "Заливка и обработка на 1 шт, мин"],
+  ["packaging", "Упаковка на 1 шт, руб."]
+];
+const st3TariffFields = [
+  ["film", "Плёнка-основа, руб./м²"],
+  ["print", "Печать, руб./м²"],
+  ["cut", "Резка контура, руб./пог. м"],
+  ["resin", "Смола + отвердитель, руб./мл"],
+  ["operator", "Работа оператора, руб./ч"],
+  ["design", "Разработка макета, руб."],
+  ["minCost", "Мин. стоимость работ, руб."]
+];
+
+function loadSt3Config(cfg) {
+  if (!cfg || typeof cfg !== "object") return;
+  Object.keys(st3Defaults).forEach(k => {
+    if (cfg[k] !== undefined && isFinite(Number(cfg[k]))) st3Defaults[k] = Number(cfg[k]);
+  });
+  if (Array.isArray(cfg.tiers)) {
+    const tiers = cfg.tiers
+      .map(t => ({ upTo: Number(t.upTo), coef: Number(t.coef) }))
+      .filter(t => t.upTo > 0 && t.coef > 0)
+      .sort((a, b) => a.upTo - b.upTo);
+    if (tiers.length > 0) st3Tiers = tiers;
+  }
+}
+
+function st3Val(key) {
+  return (st3[key] === null || st3[key] === "") ? (Number(st3Defaults[key]) || 0) : (Number(st3[key]) || 0);
+}
+
+function st3TierFor(qty) {
+  return st3Tiers.find(t => qty <= t.upTo) || st3Tiers[st3Tiers.length - 1] || { upTo: Infinity, coef: 1 };
+}
+
+function st3Calc() {
+  const qty = Math.max(1, Math.floor(Number(st3.qty)) || 1);
+  const h = Number(st3.height) || 0;
+  const w = Number(st3.width) || 0;
+  const bboxM2 = h * w / 1e6;                                   // плёнка и печать идут по габариту
+  const shapeMm2 = st3.shape === "ellipse" ? Math.PI / 4 * h * w : h * w; // смола — по площади фигуры
+  let cutMm = Number(st3.cutMm) || 0;
+  if (!cutMm) {
+    if (st3.shape === "ellipse") {
+      const a = h / 2, b = w / 2;
+      cutMm = Math.PI * (3 * (a + b) - Math.sqrt((3 * a + b) * (a + 3 * b)));
+    } else {
+      cutMm = 2 * (h + w);
+    }
+  }
+  const qtyEff = qty * (1 + st3Val("waste") / 100);             // с запасом на брак
+  const resinMlPiece = shapeMm2 * st3Val("thickness") / 1000;   // мм² × мм = мм³; 1000 мм³ = 1 мл
+  const resinMl = resinMlPiece * qtyEff;
+  const pourMinutes = st3Val("pourMin") * qtyEff;
+
+  const costFilm = bboxM2 * st3Val("film") * qtyEff;
+  const costPrint = bboxM2 * st3Val("print") * qtyEff;
+  const costCut = cutMm / 1000 * st3Val("cut") * qtyEff;
+  const costResin = resinMl * st3Val("resin");
+  const costLabor = pourMinutes / 60 * st3Val("operator");
+  const costWork = costFilm + costPrint + costCut + costResin + costLabor;
+  const design = st3.designOn ? st3Val("design") : 0;
+  const packaging = st3Val("packaging") * qty;
+  const costTotal = costWork + design + packaging;
+
+  const autoCoef = Number(st3TierFor(qty).coef) || 1;
+  const manual = st3.coef !== null && st3.coef !== "" && Number(st3.coef) > 0;
+  const coef = manual ? Number(st3.coef) : autoCoef;
+
+  const priceWork = costWork * coef;
+  const workRaw = priceWork + design;
+  const minCost = st3Val("minCost");
+  const topUp = (minCost && workRaw < minCost && workRaw > 0) ? (minCost - workRaw) : 0;
+  const total = workRaw + topUp + packaging;
+  return {
+    qty, qtyEff, coef, autoCoef, manual, cutMm, resinMlPiece, resinMl, pourMinutes,
+    costFilm, costPrint, costCut, costResin, costLabor, costWork, design, packaging, costTotal,
+    priceWork, topUp, total, margin: total - costTotal
+  };
+}
+
+function st3Payload() {
+  const r = st3Calc();
+  const k = r.priceWork / (r.costWork || 1);                   // коэффициент, применённый к каждой статье
+  const ops = [];
+  const addOp = (name, sum) => {
+    if (sum > 0) ops.push({ name, mode: "pc", rate: sum / r.qty, length_m: 0, setup_cost: 0, grommet_count: 0, spacing_cm: 30, min_cost: 0, sum });
+  };
+  addOp("Плёнка-основа", r.costFilm * (r.costWork ? k : 0));
+  addOp("Печать", r.costPrint * (r.costWork ? k : 0));
+  addOp("Резка по контуру", r.costCut * (r.costWork ? k : 0));
+  addOp(`Эпоксидная смола (${(Math.round(r.resinMl * 10) / 10)} мл на тираж)`, r.costResin * (r.costWork ? k : 0));
+  addOp(`Заливка и обработка (${embFmtTime(r.pourMinutes)})`, r.costLabor * (r.costWork ? k : 0));
+  addOp("Разработка макета", r.design);
+  addOp("Доплата до минимальной стоимости", r.topUp);
+  const componentSum = r.packaging + ops.reduce((a, o) => a + o.sum, 0);
+  return {
+    product: { name: st3.name.trim() || "3D стикеры со смолой", qty: r.qty, multi: false },
+    components: [{
+      material: { name: "Упаковка", mode: "pc", rate: st3Val("packaging") },
+      height_mm: Number(st3.height) || 0, width_mm: Number(st3.width) || 0, qty: 1, qty_per_unit: 1, material_length_m: 0,
+      material_sum: r.packaging,
+      operations: ops,
+      component_sum: componentSum
+    }],
+    total: r.total,
+    stickers3d: {
+      height_mm: Number(st3.height) || 0, width_mm: Number(st3.width) || 0, shape: st3.shape,
+      cut_length_mm: Math.round(r.cutMm * 10) / 10,
+      resin_ml_per_piece: Math.round(r.resinMlPiece * 100) / 100,
+      resin_ml_total: Math.round(r.resinMl * 10) / 10,
+      design_developed: !!st3.designOn,
+      tirage_coefficient: r.coef, tirage_coefficient_manual: r.manual,
+      cost_work: Math.round(r.costWork * 100) / 100,
+      cost_total: Math.round(r.costTotal * 100) / 100,
+      tariffs: Object.fromEntries(Object.keys(st3Defaults).map(key => [key, st3Val(key)]))
+    }
+  };
+}
+
+function st3ResultHtml() {
+  const r = st3Calc();
+  const f = (v) => (Math.round(v * 100) / 100).toLocaleString("ru-RU");
+  const line = (label, v, bold) => `<div style="display:flex; justify-content:space-between; gap:8px; font-size:13px; padding:2px 0;${bold ? " font-weight:600;" : ""}"><span>${label}</span><span>${f(v)} руб.</span></div>`;
+  const title = (t) => `<div class="hint" style="margin:10px 0 4px; font-weight:600;">${t}</div>`;
+  let h = `<div class="hint" style="margin:0 0 4px;">Смола: ${f(r.resinMlPiece)} мл на 1 шт, ${f(r.resinMl)} мл на тираж с запасом · длина реза ${f(r.cutMm)} мм · заливка ${embFmtTime(r.pourMinutes)}</div>`;
+  h += title("Себестоимость");
+  h += line("Плёнка-основа", r.costFilm);
+  h += line("Печать", r.costPrint);
+  h += line("Резка по контуру", r.costCut);
+  h += line("Эпоксидная смола", r.costResin);
+  h += line("Заливка и обработка", r.costLabor);
+  if (r.design > 0) h += line("Разработка макета", r.design);
+  if (r.packaging > 0) h += line("Упаковка", r.packaging);
+  h += line("Себестоимость итого", r.costTotal, true);
+  h += title(`Цена для клиента · коэффициент тиража ×${r.coef}${r.manual ? " (вручную)" : " (из справочника)"}`);
+  h += line(`Производство по себестоимости ${f(r.costWork)} × ${r.coef}`, r.priceWork);
+  if (r.design > 0) h += line("Разработка макета", r.design);
+  if (r.topUp > 0) h += line("Доплата до минимальной стоимости", r.topUp);
+  if (r.packaging > 0) h += line("Упаковка", r.packaging);
+  h += `<div class="total" style="justify-content:flex-start; gap:8px; margin-top:8px;"><span>Итого:</span><span>${f(r.total)} руб.</span></div>`;
+  h += `<div class="hint">За 1 шт: ${f(r.total / r.qty)} руб. · Наценка: ${r.margin >= 0 ? "+" : ""}${f(r.margin)} руб.${r.costTotal > 0 ? ` (${Math.round(r.margin / r.costTotal * 100)}% к себестоимости)` : ""}</div>`;
+  return h;
+}
+
+function renderSt3(app) {
+  const field = (id, label, key, step) => {
+    const isDef = key in st3Defaults;
+    const val = isDef ? (st3[key] === null ? st3Defaults[key] : st3[key]) : (st3[key] === null ? "" : st3[key]);
+    const changed = isDef && st3[key] !== null && Number(st3[key]) !== Number(st3Defaults[key]);
+    return `
+    <div>
+      <label>${label}</label>
+      <input type="number" id="st3_${id}" class="${changed ? "emb-changed" : ""}" step="${step || "any"}" min="0" inputmode="decimal" value="${val}">
+    </div>`;
+  };
+  const tg_ = !!tg;
+  const actionHtml = tg_
+    ? `<button class="btn btn-primary" id="st3Send">Отправить расчёт в чат</button>`
+    : `<button class="btn btn-primary" id="st3Send">Скачать JSON расчёта</button>
+       <button class="btn secondary" id="st3Xlsx" style="margin-top:6px;">Скачать Excel</button>`;
+  app.innerHTML = `
+    <h1>3D стикеры со смолой</h1>
+    <div class="emb-layout">
+      <div class="emb-form">
+        <div class="emb-grid">
+          <div class="full">
+            <label>Название заказа</label>
+            <input type="text" id="st3_name" placeholder="Например: Стикеры с логотипом" value="${st3.name.replace(/"/g, "&quot;")}">
+          </div>
+          ${field("qty", "Тираж, шт", "qty", "1")}
+          <div>
+            <label>Форма</label>
+            <select id="st3_shape" style="width:100%; padding:6px 9px; font-size:14px; border-radius:8px; border:1px solid var(--tg-theme-hint-color, #cccccc); background:var(--tg-theme-secondary-bg-color, #f2f2f2); color:var(--tg-theme-text-color, #000);">
+              <option value="rect" ${st3.shape === "rect" ? "selected" : ""}>Прямоугольник</option>
+              <option value="ellipse" ${st3.shape === "ellipse" ? "selected" : ""}>Круг / овал</option>
+            </select>
+          </div>
+          ${field("height", "Высота стикера, мм", "height")}
+          ${field("width", "Ширина стикера, мм", "width")}
+          ${field("cutMm", "Длина реза на 1 шт, мм (пусто — авто)", "cutMm")}
+          ${field("coef", "Коэффициент тиража (пусто — из справочника)", "coef")}
+          <label class="emb-check"><input type="checkbox" id="st3_designOn" ${st3.designOn ? "checked" : ""}> Макет разрабатывался</label>
+        </div>
+        <div class="emb-section">Параметры производства</div>
+        <div class="emb-grid">
+          ${st3ParamFields.map(([key, label]) => field(key, label, key)).join("")}
+        </div>
+        <div class="emb-section" style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
+          <span>Тарифы из справочника — можно менять для этого расчёта</span>
+          <button type="button" class="btn-sm" id="st3ResetTariffs" style="padding:3px 8px; font-size:11px; font-weight:400;">Сбросить</button>
+        </div>
+        <div class="hint" style="margin:0 0 6px;">Изменённые значения выделены синей рамкой. Постоянно тарифы меняются в редакторе справочников.</div>
+        <div class="emb-grid">
+          ${st3TariffFields.map(([key, label]) => field(key, label, key)).join("")}
+        </div>
+      </div>
+      <div class="emb-result">
+        <div class="summary-line" id="st3Result" style="display:block;"></div>
+        ${actionHtml}
+        ${tg_ ? "" : `<div class="hint" style="margin-top:8px;">Страница открыта не в Telegram — расчёт можно скачать файлом.</div>`}
+      </div>
+    </div>
+  `;
+  const upd = () => {
+    document.getElementById("st3Result").innerHTML = st3ResultHtml();
+    document.getElementById("st3_coef").placeholder = "из справочника: ×" + st3Calc().autoCoef;
+  };
+  document.getElementById("st3_name").oninput = (e) => { st3.name = e.target.value; };
+  document.getElementById("st3_shape").onchange = (e) => { st3.shape = e.target.value; upd(); };
+  document.getElementById("st3_designOn").onchange = (e) => { st3.designOn = e.target.checked; upd(); };
+  const keys = ["qty", "height", "width", "cutMm", "coef"].concat(st3ParamFields.map(x => x[0]), st3TariffFields.map(x => x[0]));
+  keys.forEach((key) => {
+    const el = document.getElementById("st3_" + key);
+    const isDef = key in st3Defaults;
+    el.oninput = (e) => {
+      st3[key] = e.target.value === "" ? (key === "qty" ? 1 : ((isDef || key === "coef" || key === "cutMm") ? null : 0)) : e.target.value;
+      if (isDef) el.classList.toggle("emb-changed", el.value !== "" && Number(el.value) !== Number(st3Defaults[key]));
+      upd();
+    };
+    if (isDef) {
+      el.onchange = () => {
+        if (el.value === "") { st3[key] = null; el.value = st3Defaults[key]; el.classList.remove("emb-changed"); upd(); }
+      };
+    }
+  });
+  document.getElementById("st3ResetTariffs").onclick = () => {
+    Object.keys(st3Defaults).forEach((k) => {
+      st3[k] = null;
+      const el = document.getElementById("st3_" + k);
+      if (el) { el.value = st3Defaults[k]; el.classList.remove("emb-changed"); }
+    });
+    upd();
+  };
+  document.getElementById("st3Send").onclick = () => {
+    const payload = st3Payload();
+    if (tg) {
+      tg.sendData(JSON.stringify(payload));
+      tg.close();
+    } else {
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = "stickers3d.json"; a.click();
+      URL.revokeObjectURL(url);
+    }
+  };
+  const x = document.getElementById("st3Xlsx");
+  if (x) x.onclick = () => downloadXlsx(st3Payload());
+  upd();
+}
+
 function render() {
   try {
     renderInner();
@@ -1477,8 +1751,10 @@ Promise.all([
   fetch("operations.json?v=" + Date.now(), { cache: "no-store" }).then(r => r.json()),
   fetchJsonSafe("material_operations.json?v=" + Date.now(), []),
   fetchJsonSafe("templates.json?v=" + Date.now(), []),
-  fetchJsonSafe("embroidery.json?v=" + Date.now(), {})
-]).then(([m, o, link, tpl, embCfg]) => {
+  fetchJsonSafe("embroidery.json?v=" + Date.now(), {}),
+  fetchJsonSafe("stickers3d.json?v=" + Date.now(), {})
+]).then(([m, o, link, tpl, embCfg, st3Cfg]) => {
+  loadSt3Config(st3Cfg);
   if (embCfg && typeof embCfg === "object") {
     Object.keys(embDefaults).forEach(k => { if (embCfg[k] !== undefined) embDefaults[k] = Number(embCfg[k]) || 0; });
     if (Array.isArray(embCfg.tiers)) {
